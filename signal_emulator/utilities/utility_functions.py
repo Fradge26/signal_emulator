@@ -1,7 +1,7 @@
 import csv
 import glob
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 
 def load_json_to_dict(json_file_path) -> dict:
@@ -75,6 +75,17 @@ def time_str_to_timedelta(time_str) -> timedelta:
     hours, minutes, seconds = map(int, time_str.split(":"))
     timedelta_obj = timedelta(hours=hours, minutes=minutes, seconds=seconds)
     return timedelta_obj
+
+
+def time_str_to_time(time_str) -> time:
+    """
+    Function to convert a time string in format hh:mm:ss to timedelta
+    :param time_str: time string
+    :return: timedelta
+    """
+    hours, minutes, seconds = map(int, time_str.split(":"))
+    time_obj = time(hour=hours, minute=minutes, second=seconds)
+    return time_obj
 
 
 def list_to_csv(data, output_path, delimiter=","):
