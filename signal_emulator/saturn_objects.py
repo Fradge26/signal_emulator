@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 @dataclass(eq=False)
 class PhaseToSaturnTurn:
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     controller_key: str
     phase_ref: str
     turn: int

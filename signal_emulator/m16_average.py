@@ -23,7 +23,7 @@ class M16Average(BaseItem):
     ratio: float
     single_double_triple: int
     cycle_time_independent: bool
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def get_key(self):
         return self.node_id, self.time_period_id

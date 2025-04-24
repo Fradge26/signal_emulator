@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @dataclass(eq=False)
 class PlanTimetable:
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     site_number: str
     subgroup: str
     region: str

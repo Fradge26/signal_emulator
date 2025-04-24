@@ -25,7 +25,7 @@ class TimePeriod:
     start_time_str: str
     end_time_str: str
     long_name: Optional[str] = None
-    signal_emulator: Optional["SignalEmulator"] = None
+    signal_emulator: Optional[SignalEmulator] = None
 
     def __post_init__(self):
         self.start_time = time_str_to_timedelta(self.start_time_str)

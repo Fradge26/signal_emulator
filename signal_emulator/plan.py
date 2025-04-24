@@ -20,7 +20,7 @@ class Plan:
     name: str
     cycle_time: int
     timeout: int
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def __post_init__(self):
         self.plan_sequence_items = []
@@ -653,7 +653,7 @@ class PlanSequenceItem:
     p_bits: List
     nto: bool
     scoot_stage: str
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def __post_init__(self):
         self.plan.plan_sequence_items.append(self)

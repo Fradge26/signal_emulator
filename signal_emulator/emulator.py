@@ -41,7 +41,7 @@ class SignalEmulator:
     DEFAULT_TIME_PERIODS_PATH = os.path.join(BASE_DIRECTORY, "resources/time_periods/default_time_periods.json")
 
     def __init__(self, config):
-        self.logger = self.setup_logger()
+        self.logger = self.setup_logger(config.get("log_level", "INFO"))
         self.logger.info(f"Starting run of signal_emulator.py")
         if "postgres_connection" in config:
             self.postgres_connection = PostgresConnection(**config["postgres_connection"])
@@ -137,25 +137,37 @@ class SignalEmulator:
                     )
         return stream_codes
 
-    @staticmethod
-    def setup_logger():
+    def setup_logger(self, log_level=None):
         if not os.path.exists("log"):
             os.makedirs("log")
+        numeric_level = getattr(logging, log_level.upper(), None)
+        if not isinstance(numeric_level, int):
+            numeric_level = 20
         logging.basicConfig(
             filename=f"log/{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}_signal_emulator.log",
-            level=logging.WARNING,
+            level=numeric_level,
             format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         # set up logging to console
         console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
+        console.setLevel(numeric_level)
+
         # set a format which is simpler for console use
         formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
         console.setFormatter(formatter)
         # add the handler to the root logger
         logging.getLogger("").addHandler(console)
+        if log_level:
+            self.set_log_level(log_level)
         return logging.getLogger(__name__)
+
+    @staticmethod
+    def set_log_level(level_str: str):
+        numeric_level = getattr(logging, level_str.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError(f"Invalid log level: {level_str}")
+        logging.basicConfig(level=numeric_level)
 
     def generate_signal_plans(self, ped_only=False):
         """

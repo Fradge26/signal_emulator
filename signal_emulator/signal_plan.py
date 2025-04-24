@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 @dataclass(eq=False)
 class SignalPlan(BaseItem):
     PROBABLY_ZERO = 0
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     controller_key: str
     signal_plan_number: str
     cycle_time: int | None
@@ -267,7 +267,7 @@ class SignalPlans(BaseCollection):
 
 @dataclass(eq=False)
 class SignalPlanStream(BaseItem):
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     controller_key: str
     site_id: str
     signal_plan_number: str
@@ -631,7 +631,7 @@ class SignalPlanStreams(BaseCollection):
 
 @dataclass(eq=False)
 class SignalPlanStage(BaseItem):
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     controller_key: str
     signal_plan_number: int
     stream_number: int

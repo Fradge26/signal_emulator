@@ -53,7 +53,7 @@ class PhaseTermType(IntEnum):
     END_OF_STAGE = 0
     ASSOCIATED_PHASE_GAINS_ROW = 1  # Filter
     ASSOCIATED_PHASE_LOSES_ROW = 2  # Indicative Arrow
-    THREE = 3                       # Unknown
+    THREE = 3  # Unknown
 
 
 PhaseTypeAndTermTypeToLinsigPhaseType = {

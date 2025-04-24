@@ -20,7 +20,7 @@ class M37Average:
     Class to represent M37 signal timing information for one node, site and stage combination
     """
 
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     node_id: str
     site_id: str
     utc_stage_id: str

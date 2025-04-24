@@ -110,7 +110,8 @@ class BaseCollection:
                 {
                     field.name: getattr(item, field.name)
                     for field in all_fields
-                    if field.type not in {object, Optional[object]}
+                    if getattr(field.type, "__name__", field.type) not in {"SignalEmulator", "Optional[SignalEmulator]"}
+                    and field.type not in {object, Optional[object]}
                 }
             )
         df = pd.DataFrame(item_data)
@@ -158,7 +159,7 @@ class Controller(BaseItem):
     address: str
     spec_issue_no: str
     is_pedestrian_controller: bool
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     TIMING_SHEET_COLUMN_LOOKUP_PATH = os.path.join(
         os.path.dirname(__file__), "resources/configs/timing_sheet_column_config.json"
@@ -309,7 +310,7 @@ class Stage(BaseItem):
     stream_number: int
     stream_stage_number: int
     phase_keys_in_stage: List[str]
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def __post_init__(self):
         self.phase_stage_demand_dependencies = []
@@ -486,7 +487,7 @@ class Phase(BaseItem):
     termination_type_int: int
     text: str
     associated_phase_ref: str
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def __post_init__(self):
         self.indicative_arrow_phase = None
@@ -698,7 +699,7 @@ class BaseIntergreen(BaseItem):
     end_phase_key: str
     start_phase_key: str
     intergreen_time: int
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def get_key(self):
         return self.controller_key, self.end_phase_key, self.start_phase_key
@@ -853,7 +854,7 @@ class BasePhaseDelay(BaseItem):
     start_stage_key: int
     phase_ref: str
     delay_time: int
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     is_absolute: bool
 
     def __repr__(self):
@@ -1019,7 +1020,7 @@ class ProhibitedStageMove(BaseItem):
     via_stage_key: Union[int, None]
     prohibited: bool
     ignore: bool
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     @property
     def end_stage(self):
@@ -1051,7 +1052,7 @@ class ProhibitedStageMoves(BaseCollection):
 
 @dataclass(eq=False)
 class PhaseTiming:
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     controller_key: str
     site_id: str
     phase_ref: str
@@ -1169,7 +1170,7 @@ class PhaseStageDemandDependency(BaseItem):
     controller_key: str
     stage_number: int
     phase_ref: str
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
 
     def __post_init__(self):
         if self.stage:

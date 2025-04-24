@@ -82,7 +82,7 @@ class VisumSignalGroup(BaseItem):
     green_time_start: int
     green_time_end: int
     source_data: str
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     green_time_start_am: Optional[int] = 0
     green_time_end_am: Optional[int] = 0
     green_time_start_op: Optional[int] = 0
@@ -181,7 +181,7 @@ class VisumSignalController:
     time_period_id: str
     source_data: str
     mode: str
-    signal_emulator: "SignalEmulator"
+    signal_emulator: SignalEmulator
     signalisation_type: Optional[str] = DEFAULT_SIGNALISATION_TYPE
     cycle_time_am: Optional[int] = None
     cycle_time_op: Optional[int] = None

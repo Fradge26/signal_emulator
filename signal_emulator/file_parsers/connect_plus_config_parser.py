@@ -1,10 +1,11 @@
-import pdfplumber
-from pathlib import Path
-from signal_emulator.utilities.utility_functions import str_to_int
-import os
 import glob
+import os
 from collections import defaultdict
-import re
+from pathlib import Path
+
+import pdfplumber
+
+from signal_emulator.utilities.utility_functions import str_to_int
 
 
 class ConnectPlusConfigParser:
