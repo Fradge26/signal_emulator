@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from signal_emulator.controller import BaseCollection, BaseItem
 from signal_emulator.utilities.utility_functions import find_files_with_extension
+
+if TYPE_CHECKING:
+    from signal_emulator.emulator import SignalEmulator
 
 
 @dataclass(eq=False)
@@ -17,7 +23,7 @@ class M16Average(BaseItem):
     ratio: float
     single_double_triple: int
     cycle_time_independent: bool
-    signal_emulator: object
+    signal_emulator: "SignalEmulator"
 
     def get_key(self):
         return self.node_id, self.time_period_id
@@ -104,9 +110,7 @@ class M16Averages(BaseCollection):
             self.write_to_csv(export_to_csv_path)
 
     def calculate_modal_cycle_times(self):
-        self.m16_raw_df["timedelta"] = self.m16_raw_df["timestamp"].dt.time.apply(
-            lambda x: pd.to_timedelta(str(x))
-        )
+        self.m16_raw_df["timedelta"] = self.m16_raw_df["timestamp"].dt.time.apply(lambda x: pd.to_timedelta(str(x)))
         self.m16_raw_df["time_period_id"] = self.m16_raw_df["timedelta"].apply(
             lambda x: self.signal_emulator.time_periods.get_period_id_for_timedelta(x)
         )
@@ -120,9 +124,7 @@ class M16Averages(BaseCollection):
             .reset_index(name="count")
         )
         ct_total_count = (
-            ct_count.groupby(["region_id", "node_id", "time_period_id"])["count"]
-            .sum()
-            .reset_index(name="count_total")
+            ct_count.groupby(["region_id", "node_id", "time_period_id"])["count"].sum().reset_index(name="count_total")
         )
         ct_count = pd.merge(ct_count, ct_total_count, on=["region_id", "node_id", "time_period_id"])
         ct_count["proportion"] = ct_count["count"] / ct_count["count_total"]
@@ -140,9 +142,7 @@ class M16Averages(BaseCollection):
             .reset_index()
         ).rename(columns={"node_cycle_time": "region_cycle_time"})
 
-        merged_df = pd.merge(
-            node_id_grouped, node_id_grouped_max, on=["region_id", "time_period_id"]
-        )
+        merged_df = pd.merge(node_id_grouped, node_id_grouped_max, on=["region_id", "time_period_id"])
 
         merged_df.sort_values(by=["region_id", "node_id", "time_period_id"])
         merged_df["ratio"] = merged_df["region_cycle_time"] / merged_df["node_cycle_time"]
@@ -155,8 +155,7 @@ class M16Averages(BaseCollection):
         # set the final cycle time, use region_cycle_time unless it is multi cycling
         merged_df["cycle_time_independent"] = False
         merged_df["cycle_time_independent"][
-            (merged_df["node_cycle_time"] != merged_df["region_cycle_time"])
-            & (merged_df["single_double_triple"] == 1)
+            (merged_df["node_cycle_time"] != merged_df["region_cycle_time"]) & (merged_df["single_double_triple"] == 1)
         ] = True
         return merged_df
 
@@ -177,16 +176,10 @@ class M16Averages(BaseCollection):
     def get_region_id(self, node_id, time_period_id):
         stream_key = f"J{node_id[1:]}"
         stream = self.signal_emulator.streams.get_by_site_id(stream_key, strict=False)
-        if stream and self.signal_emulator.plan_timetables.key_exists(
-            (stream.controller_key, time_period_id)
-        ):
-            region_id = self.signal_emulator.plan_timetables.get_by_key(
-                (stream.controller_key, time_period_id)
-            ).region
+        if stream and self.signal_emulator.plan_timetables.key_exists((stream.controller_key, time_period_id)):
+            region_id = self.signal_emulator.plan_timetables.get_by_key((stream.controller_key, time_period_id)).region
         elif self.signal_emulator.plan_timetables.key_exists((stream_key, time_period_id)):
-            region_id = self.signal_emulator.plan_timetables.get_by_key(
-                (stream_key, time_period_id)
-            ).region
+            region_id = self.signal_emulator.plan_timetables.get_by_key((stream_key, time_period_id)).region
         else:
             region_id = f"{node_id}_NO_GROUP"
         # Region / Group 0 is a temporary group for commissioning, assign composite region_id so that

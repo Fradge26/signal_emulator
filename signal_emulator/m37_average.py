@@ -1,5 +1,7 @@
-import os
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -8,6 +10,9 @@ from signal_emulator.enums import M37StageToStageNumber
 from signal_emulator.time_period import TimePeriods
 from signal_emulator.utilities.utility_functions import clean_site_number, find_files_with_extension
 
+if TYPE_CHECKING:
+    from signal_emulator.emulator import SignalEmulator
+
 
 @dataclass(eq=False)
 class M37Average:
@@ -15,7 +20,7 @@ class M37Average:
     Class to represent M37 signal timing information for one node, site and stage combination
     """
 
-    signal_emulator: object
+    signal_emulator: "SignalEmulator"
     node_id: str
     site_id: str
     utc_stage_id: str
@@ -26,9 +31,7 @@ class M37Average:
     cycle_time: int
 
     def __repr__(self):
-        return (
-            f"M37: {self.site_id=} {self.utc_stage_id=} {self.green_time=} {self.interstage_time=}"
-        )
+        return f"M37: {self.site_id=} {self.utc_stage_id=} {self.green_time=} {self.interstage_time=}"
 
     def get_key(self):
         return self.site_id, self.stage_number, self.period_id
@@ -112,7 +115,7 @@ class M37Averages(BaseCollection):
             self.write_to_csv(export_to_csv_path)
 
     def get_cycle_time_by_site_id_and_period_id(self, site_id, period_id):
-        for (stage_id, stage_number) in M37StageToStageNumber.__members__.items():
+        for stage_id, stage_number in M37StageToStageNumber.__members__.items():
             if self.key_exists((site_id, stage_number, period_id)):
                 return self.get_by_key((site_id, stage_number, period_id)).cycle_time
         else:
@@ -126,13 +129,9 @@ class M37Averages(BaseCollection):
         m37_all = pd.DataFrame()
         for period in self.periods:
             # filter M37s to the time bounds of the time Period
-            m37_filtered = self.m37_data.between_time(
-                start_time=period.start_time_str, end_time=period.end_time_str
-            )
+            m37_filtered = self.m37_data.between_time(start_time=period.start_time_str, end_time=period.end_time_str)
             # Group by NodeId, site_id and utc_stage_id
-            m37_grouped_node_site_stage = m37_filtered.groupby(
-                ["node_id", "site_id", "utc_stage_id"]
-            )
+            m37_grouped_node_site_stage = m37_filtered.groupby(["node_id", "site_id", "utc_stage_id"])
             # aggregate to get the number of occurrences, average green time and total green times
             m37 = m37_grouped_node_site_stage.agg(
                 occurrences=("intergreen_time", "count"),
@@ -145,9 +144,7 @@ class M37Averages(BaseCollection):
             m37["end_timestamp"] = period.end_time
             m37["period_id"] = period.name
             m37["stage_total"] = m37["green_total"] + m37["interstage_total"]
-            m37_cycles = (
-                m37_grouped_node_site_stage.size().groupby(["node_id", "site_id"]).agg(cycles="max")
-            )
+            m37_cycles = m37_grouped_node_site_stage.size().groupby(["node_id", "site_id"]).agg(cycles="max")
             m37 = m37.merge(m37_cycles, left_index=True, right_index=True, how="outer")
             total_times = m37.groupby(["node_id", "site_id"]).agg(total_time=("stage_total", "sum"))
             total_times["coverage"] = total_times["total_time"] / period.total_seconds
@@ -156,17 +153,14 @@ class M37Averages(BaseCollection):
             m37["occurrence_factor"] = m37["occurrences"] / m37["cycles"]
             # Apply occurrence factor to the green times and interstage times
             m37["adjusted_green_average"] = m37["green_average"] * m37["occurrence_factor"]
-            m37["adjusted_interstage_average"] = (
-                m37["interstage_average"] * m37["occurrence_factor"]
-            )
+            m37["adjusted_interstage_average"] = m37["interstage_average"] * m37["occurrence_factor"]
             m37_cycle_time = m37.groupby(["node_id", "site_id"]).agg(
                 adjusted_green_average_sum=("adjusted_green_average", "sum"),
                 adjusted_interstage_average_sum=("adjusted_interstage_average", "sum"),
             )
             # sum the adjusted green times and interstage times to get the cycle time
             m37_cycle_time["m37_cycle_time"] = (
-                m37_cycle_time["adjusted_green_average_sum"]
-                + m37_cycle_time["adjusted_interstage_average_sum"]
+                m37_cycle_time["adjusted_green_average_sum"] + m37_cycle_time["adjusted_interstage_average_sum"]
             )
             m37 = m37.merge(
                 m37_cycle_time["m37_cycle_time"],
@@ -189,9 +183,7 @@ class M37Averages(BaseCollection):
                 m37.dropna(inplace=True)
 
             # factor green times and interstage times to match the SCOOT cycle time
-            m37["scoot_green_time"] = (
-                m37["node_cycle_time"] / m37["m37_cycle_time"] * m37["adjusted_green_average"]
-            )
+            m37["scoot_green_time"] = m37["node_cycle_time"] / m37["m37_cycle_time"] * m37["adjusted_green_average"]
             m37["scoot_interstage_time"] = (
                 m37["node_cycle_time"] / m37["m37_cycle_time"] * m37["adjusted_interstage_average"]
             )
@@ -269,9 +261,7 @@ class M37Averages(BaseCollection):
         # Calculate the difference between rounded total and original total
         difference = original_total - rounded_total
         # Identify the indices with the largest differences
-        indices_largest_diff = (
-            (original_series - rounded_series).abs().nlargest(int(abs(difference))).index
-        )
+        indices_largest_diff = (original_series - rounded_series).abs().nlargest(int(abs(difference))).index
         # Adjust values at identified indices
         for index in indices_largest_diff:
             if difference > 0:
@@ -326,4 +316,3 @@ if __name__ == "__main__":
             ]
         ),
     )
-

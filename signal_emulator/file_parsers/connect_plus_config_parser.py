@@ -17,16 +17,10 @@ class ConnectPlusConfigParser:
         "PP": "P",
         "PT": "P",
         "T": "T",
-        "W": "P"
+        "W": "P",
     }
-    MOTUS_APPEARANCE_TYPE_DICT = {
-        "ALWAYS APPEARS": 0,
-        "IF DEMANDED AT START OF STAGE": 0
-    }
-    MOTUS_TERMINATION_TYPE_DICT = {
-        "AT END OF STAGE": 0,
-        "END OF MINIMUM GREEN": 0
-    }
+    MOTUS_APPEARANCE_TYPE_DICT = {"ALWAYS APPEARS": 0, "IF DEMANDED AT START OF STAGE": 0}
+    MOTUS_TERMINATION_TYPE_DICT = {"AT END OF STAGE": 0, "END OF MINIMUM GREEN": 0}
     SWARCO_PHASE_TYPE_DICT = {
         "802 T: vehicle": "T",
         "802 T: Vehicle": "T",
@@ -41,35 +35,25 @@ class ConnectPlusConfigParser:
         "T": "T",
         "P": "P",
         "0: Dummy": "D",
-        "Dummy": "D"
+        "Dummy": "D",
     }
-    APPEARANCE_TYPE_DICT = {
-        "Always": 0,
-        "Demand before interstage": 1,
-        "Demand during interstage or stage": 1
-    }
-    TERMINATION_TYPE_DICT = {
-        "At end of stage": 0,
-        "When minimum timer expires": 0
-    }
-    SIEMENS_PHASE_TYPE_DICT = {
-        "UK Traffic": "T",
-        "UK Far Side Pedestrian": "P",
-        "UK Near Side Pedestrian": "P"
-    }
-
+    APPEARANCE_TYPE_DICT = {"Always": 0, "Demand before interstage": 1, "Demand during interstage or stage": 1}
+    TERMINATION_TYPE_DICT = {"At end of stage": 0, "When minimum timer expires": 0}
+    SIEMENS_PHASE_TYPE_DICT = {"UK Traffic": "T", "UK Far Side Pedestrian": "P", "UK Near Side Pedestrian": "P"}
 
     def __init__(self, signal_emulator=None):
         self.signal_emulator = signal_emulator
 
     def config_file_iterator(self, config_directory_path):
-        for junction_directory in glob.glob(os.path.join(config_directory_path, '*/')):
+        for junction_directory in glob.glob(os.path.join(config_directory_path, "*/")):
             clean_directory = Path(junction_directory).as_posix()
             if clean_directory[-3:] == "OLD":
                 continue
-            pdf_files = glob.glob(os.path.join(clean_directory, "Configuration File", '*.pdf'))
+            pdf_files = glob.glob(os.path.join(clean_directory, "Configuration File", "*.pdf"))
             if len(pdf_files) > 1:
-                self.signal_emulator.logger.warning(f"Check directory, contains more than 1 pdf files: {clean_directory}")
+                self.signal_emulator.logger.warning(
+                    f"Check directory, contains more than 1 pdf files: {clean_directory}"
+                )
             elif len(pdf_files) == 0:
                 self.signal_emulator.logger.warning(f"Check directory, contains 0 pdf files: {clean_directory}")
             else:
@@ -108,12 +92,9 @@ class ConnectPlusConfigParser:
                     for phase_ref in row[1].split(","):
                         if phase_ref != "":
                             phases_in_stages.append(
-                                {
-                                    "stage_number": str_to_int(row[0]) + stage_offset,
-                                    "phase_ref": phase_ref
-                                }
+                                {"stage_number": str_to_int(row[0]) + stage_offset, "phase_ref": phase_ref}
                             )
-                    if i == len(table_data[2:])-1:
+                    if i == len(table_data[2:]) - 1:
                         stage_offset += str_to_int(row[0]) + 1
         return phases_in_stages
 
@@ -130,19 +111,17 @@ class ConnectPlusConfigParser:
                 current_stream = int(row[0].replace("\nmaertS", ""))
             phases_table_data[i][0] = current_stream
             if row[1]:
-                phases_table_data[i][1] = i-1
+                phases_table_data[i][1] = i - 1
 
         table_rects_1 = [
-            a for a in page.objects["rect"]
-            if a["non_stroking_color"] != (0,0,0) and int(a["width"]) in {23,24} and int(a["height"]) == 11
+            a
+            for a in page.objects["rect"]
+            if a["non_stroking_color"] != (0, 0, 0) and int(a["width"]) in {23, 24} and int(a["height"]) == 11
         ]
         phases_in_stages = []
         for rect in table_rects_1:
             cell_i, cell_j = self.get_cell_index_containing_rect(phases_table, rect)
-            phase_in_stage = {
-                "stage_number": phases_table_data[cell_i][1],
-                "phase_ref": phases_table_data[0][cell_j]
-            }
+            phase_in_stage = {"stage_number": phases_table_data[cell_i][1], "phase_ref": phases_table_data[0][cell_j]}
             if phase_in_stage not in phases_in_stages:
                 phases_in_stages.append(phase_in_stage)
         return sorted(phases_in_stages, key=lambda x: x["stage_number"])
@@ -158,10 +137,7 @@ class ConnectPlusConfigParser:
                 stream_number = int(table_data[0][0][-1])
                 for i, row in enumerate(table_data[2:]):
                     stages_in_streams.append(
-                        {
-                            "stage_number": str_to_int(row[0]) + stage_offset,
-                            "stream_number": stream_number
-                        }
+                        {"stage_number": str_to_int(row[0]) + stage_offset, "stream_number": stream_number}
                     )
                     if i == len(table_data[2:]) - 1:
                         stage_offset += str_to_int(row[0]) + 1
@@ -180,12 +156,7 @@ class ConnectPlusConfigParser:
             if row[0]:
                 current_stream = int(row[0].replace("\nmaertS", ""))
             phases_table_data[i][0] = current_stream
-            stages_in_streams.append(
-                {
-                    "stream_number": current_stream,
-                    "stage_number": i
-                }
-            )
+            stages_in_streams.append({"stream_number": current_stream, "stage_number": i})
         return stages_in_streams
 
     def get_phases_in_stages(self, pdf):
@@ -194,7 +165,9 @@ class ConnectPlusConfigParser:
             page = self.get_page(pdf, "Streams, Stages, Phases Control")
         page_txt_list = page.extract_text().split("\n")
         num_phases = int(self.get_text_after_substrings(page_txt_list, "Total Number of Phases"))
-        num_stages = self.get_text_between_substrings(page_txt_list, "Current Number of stages", "Number of Switched Signs")
+        num_stages = self.get_text_between_substrings(
+            page_txt_list, "Current Number of stages", "Number of Switched Signs"
+        )
         if not num_stages:
             num_stages = self.get_text_before_substrings(page_txt_list, "Number of Switched Signs")
         num_stages = int(num_stages)
@@ -209,10 +182,11 @@ class ConnectPlusConfigParser:
         else:
             print("ahhhh")
         table_rects_1 = [
-            a for a in page.objects["rect"]
-            if int(a["width"]) == 10 or
-               int(a["width"]) == 12 or
-               (int(a["width"]) == 7 and a["stroking_color"] == (1,0,0))
+            a
+            for a in page.objects["rect"]
+            if int(a["width"]) == 10
+            or int(a["width"]) == 12
+            or (int(a["width"]) == 7 and a["stroking_color"] == (1, 0, 0))
         ]
         phases_table_data = phases_table.extract()
         phases_in_stages = []
@@ -220,7 +194,7 @@ class ConnectPlusConfigParser:
             cell_i, cell_j = self.get_cell_index_containing_rect(phases_table, rect)
             phase_in_stage = {
                 "stage_number": int(phases_table_data[cell_i][0]),
-                "phase_ref": phases_table_data[0][cell_j]
+                "phase_ref": phases_table_data[0][cell_j],
             }
             if phase_in_stage not in phases_in_stages:
                 phases_in_stages.append(phase_in_stage)
@@ -280,8 +254,10 @@ class ConnectPlusConfigParser:
                 unknown_count = 0
                 for table in tables:
                     if table_name_index:
-                        page_text_list = page_text_list[table_name_index + 1:]
-                    table_name, table_name_index, unknown_count = self.get_table_name(table[0], page_text_list, unknown_count)
+                        page_text_list = page_text_list[table_name_index + 1 :]
+                    table_name, table_name_index, unknown_count = self.get_table_name(
+                        table[0], page_text_list, unknown_count
+                    )
                     if table_name in table_dict:
                         for i in range(1, 100):
                             if f"{table_name}_{i}" not in table_dict:
@@ -336,7 +312,9 @@ class ConnectPlusConfigParser:
             processed_args["controllers"] = self.controller_telent_data_factory(pdf, controller_key)
             processed_args["streams"] = self.stream_siemens_data_factory(stages_in_streams, controller_key)
             processed_args["phases"] = phase_records
-            processed_args["stages"] = self.stage_siemens_data_factory(stages_in_streams, phases_in_stages, phase_records, controller_key)
+            processed_args["stages"] = self.stage_siemens_data_factory(
+                stages_in_streams, phases_in_stages, phase_records, controller_key
+            )
             processed_args["intergreens"] = self.intergreen_telent_data_factory(pdf, controller_key)
             processed_args["phase_delays"] = []
         return processed_args
@@ -352,7 +330,9 @@ class ConnectPlusConfigParser:
             processed_args["controllers"] = self.controller_motus150_data_factory(pdf, controller_key)
             processed_args["streams"] = self.stream_siemens_data_factory(stages_in_streams, controller_key)
             processed_args["phases"] = phase_records
-            processed_args["stages"] = self.stage_siemens_data_factory(stages_in_streams, phases_in_stages, phase_records, controller_key)
+            processed_args["stages"] = self.stage_siemens_data_factory(
+                stages_in_streams, phases_in_stages, phase_records, controller_key
+            )
             processed_args["intergreens"] = self.intergreen_motus150_data_factory(pdf, controller_key)
             processed_args["phase_delays"] = self.phase_delay_motus150_data_factory(pdf, controller_key)
         return processed_args
@@ -368,7 +348,9 @@ class ConnectPlusConfigParser:
             processed_args["controllers"] = self.controller_motus_data_factory(pdf, controller_key)
             processed_args["streams"] = self.stream_siemens_data_factory(stages_in_streams, controller_key)
             processed_args["phases"] = phase_records
-            processed_args["stages"] = self.stage_siemens_data_factory(stages_in_streams, phases_in_stages, phase_records, controller_key)
+            processed_args["stages"] = self.stage_siemens_data_factory(
+                stages_in_streams, phases_in_stages, phase_records, controller_key
+            )
             processed_args["intergreens"] = self.intergreen_motus_data_factory(pdf, controller_key)
             processed_args["phase_delays"] = self.phase_delay_motus_data_factory(pdf, controller_key)
         return processed_args
@@ -384,7 +366,9 @@ class ConnectPlusConfigParser:
             processed_args["controllers"] = self.controller_siemens_data_factory(pdf, controller_key)
             processed_args["streams"] = self.stream_siemens_data_factory(stages_in_streams, controller_key)
             processed_args["phases"] = phase_records
-            processed_args["stages"] = self.stage_siemens_data_factory(stages_in_streams, phases_in_stages, phase_records, controller_key)
+            processed_args["stages"] = self.stage_siemens_data_factory(
+                stages_in_streams, phases_in_stages, phase_records, controller_key
+            )
             processed_args["intergreens"] = self.intergreen_siemens_data_factory(pdf, controller_key)
             processed_args["phase_delays"] = self.phase_delay_siemens_data_factory(pdf, controller_key)
         return processed_args
@@ -399,15 +383,10 @@ class ConnectPlusConfigParser:
         )
         processed_args["streams"] = self.stream_swarco_data_factory(table_dict["STREAM"], controller_key)
         processed_args["phases"] = self.phase_swarco_data_factory(
-            table_dict["TYPES"],
-            table_dict["CONDITIONS"],
-            table_dict["TIMINGS"],
-            controller_key
+            table_dict["TYPES"], table_dict["CONDITIONS"], table_dict["TIMINGS"], controller_key
         )
         processed_args["stages"] = self.stage_swarco_data_factory(
-            table_dict["STAGE"],
-            table_dict["PHASES IN STAGES"],
-            controller_key
+            table_dict["STAGE"], table_dict["PHASES IN STAGES"], controller_key
         )
         processed_args["intergreens"] = self.intergreen_swarco_data_factory(
             table_dict["INTERGREEN TIMES"], controller_key
@@ -430,7 +409,7 @@ class ConnectPlusConfigParser:
                 "y_coord": 0,
                 "address": self.get_address(project_data_dict),
                 "spec_issue_no": self.get_config_version(configuration_notes),
-                "is_pedestrian_controller": False
+                "is_pedestrian_controller": False,
             }
         ]
         return controller_records
@@ -489,23 +468,30 @@ class ConnectPlusConfigParser:
         phase_conditions_dict = {a[0 + col_offset]: a for a in phase_conditions}
         phase_timings_dict = {a[0 + col_offset]: a for a in phase_timings}
         for phase_record in phase_types[1:]:
-            this_phase_ref = phase_record[0+col_offset]
+            this_phase_ref = phase_record[0 + col_offset]
             phase_records.append(
                 {
                     "controller_key": controller_key,
                     "phase_ref": this_phase_ref,
-                    "min_time": str_to_int(phase_timings_dict.get(this_phase_ref, [0,0,0])[2+col_offset]),
-                    "phase_type_str": self.SWARCO_PHASE_TYPE_DICT[phase_record[3+col_offset]],
-                    "text": phase_record[2+col_offset],
-                    "associated_phase_ref": "" if phase_record[4+col_offset] == "-" else phase_record[4+col_offset],
-                    "appearance_type_int": self.APPEARANCE_TYPE_DICT[phase_conditions_dict[this_phase_ref][2+col_offset]],
-                    "termination_type_int": self.TERMINATION_TYPE_DICT[phase_conditions_dict[this_phase_ref][3+col_offset]],
+                    "min_time": str_to_int(phase_timings_dict.get(this_phase_ref, [0, 0, 0])[2 + col_offset]),
+                    "phase_type_str": self.SWARCO_PHASE_TYPE_DICT[phase_record[3 + col_offset]],
+                    "text": phase_record[2 + col_offset],
+                    "associated_phase_ref": "" if phase_record[4 + col_offset] == "-" else phase_record[4 + col_offset],
+                    "appearance_type_int": self.APPEARANCE_TYPE_DICT[
+                        phase_conditions_dict[this_phase_ref][2 + col_offset]
+                    ],
+                    "termination_type_int": self.TERMINATION_TYPE_DICT[
+                        phase_conditions_dict[this_phase_ref][3 + col_offset]
+                    ],
                 }
             )
         return phase_records
 
     def stage_swarco_data_factory(self, stage_data, phases_in_stages_data, controller_key):
-        phases_in_stages_dict = {a[0]: [phases_in_stages_data[0][i+1] for i, b in enumerate(a[1:]) if b == "X"] for a in phases_in_stages_data[1:]}
+        phases_in_stages_dict = {
+            a[0]: [phases_in_stages_data[0][i + 1] for i, b in enumerate(a[1:]) if b == "X"]
+            for a in phases_in_stages_data[1:]
+        }
         stage_records = []
         previous_stage = None
         stream_stage_number = 1
@@ -557,7 +543,7 @@ class ConnectPlusConfigParser:
                         "end_stage_key": str_to_int(phase_delay[2]),
                         "start_stage_key": str_to_int(phase_delay[3]),
                         "delay_time": str_to_int(phase_delay[4]),
-                        "is_absolute": True
+                        "is_absolute": True,
                     }
                 )
             return phase_delay_records
@@ -603,7 +589,9 @@ class ConnectPlusConfigParser:
             page = self.get_page(pdf, "Streams, Stages, Phases Control")
         page_txt_list = page.extract_text().split("\n")
         num_streams = int(self.get_text_after_substrings(page_txt_list, "Current Number of Streams"))
-        num_stages = int(self.get_text_before_substrings(page_txt_list, "Number of Switched Signs", "Current Number of stages"))
+        num_stages = int(
+            self.get_text_before_substrings(page_txt_list, "Number of Switched Signs", "Current Number of stages")
+        )
         num_table_cells = (num_streams + 1) * (num_stages + 1)
         num_table_cells_alt = (num_streams + 1) * num_stages
         page = self.get_page(pdf, "Stages in Streams")
@@ -624,22 +612,19 @@ class ConnectPlusConfigParser:
         stages_in_streams = []
         for rect in table_rects_1:
             cell_i, cell_j = self.get_cell_index_containing_rect(stages_table, rect)
-            stage_num = ''.join(ch for ch in stages_table_data[0][cell_j] if ch.isdigit())
-            stage_in_stream = {
-                "stream_number": int(stages_table_data[cell_i][0]) + 1,
-                "stage_number": int(stage_num)
-            }
+            stage_num = "".join(ch for ch in stages_table_data[0][cell_j] if ch.isdigit())
+            stage_in_stream = {"stream_number": int(stages_table_data[cell_i][0]) + 1, "stage_number": int(stage_num)}
             if stage_in_stream not in stages_in_streams:
                 stages_in_streams.append(stage_in_stream)
         stages_in_streams = sorted(stages_in_streams, key=lambda x: x["stream_number"])
-        stages_in_streams_dict = {s["stage_number"]:s for s in stages_in_streams}
+        stages_in_streams_dict = {s["stage_number"]: s for s in stages_in_streams}
         for phase_in_stage in phases_in_stages:
             if phase_in_stage["stage_number"] not in stages_in_streams_dict.keys():
                 stage_number = phase_in_stage["stage_number"]
                 stage_in_stream = {
-                        "stream_number": stages_in_streams_dict.get(stage_number - 1)["stream_number"],
-                        "stage_number": stage_number
-                    }
+                    "stream_number": stages_in_streams_dict.get(stage_number - 1)["stream_number"],
+                    "stage_number": stage_number,
+                }
                 stages_in_streams.append(stage_in_stream)
                 stages_in_streams_dict[stage_number] = stage_in_stream
                 self.signal_emulator.logger.info(f"Stage in stream added from phases in stages: {stage_in_stream}")
@@ -699,13 +684,13 @@ class ConnectPlusConfigParser:
     def phase_siemens_data_factory(self, pdf, controller_key):
         page = self.get_page(pdf, "Phase Type and Conditions")
         page_txt = page.extract_text().split("\n")
-        i=0
+        i = 0
         phase_tncs = []
         for i, row in enumerate(page_txt):
-             if "Phase Title Type Type Type Phase" in row:
-                 break
+            if "Phase Title Type Type Type Phase" in row:
+                break
 
-        for row in page_txt[i+1: -4]:
+        for row in page_txt[i + 1 : -4]:
             row_split = row.split("-")
             last_word = row.split()[-1]
             if len(last_word) == 1:
@@ -761,7 +746,7 @@ class ConnectPlusConfigParser:
                             "controller_key": controller_key,
                             "end_phase_key": intergreens_table_data[i + 1][0],
                             "start_phase_key": intergreens_table_data[0][j + 1],
-                            "intergreen_time": str_to_int(cell)
+                            "intergreen_time": str_to_int(cell),
                         }
                     )
         return intergreen_records
@@ -779,7 +764,7 @@ class ConnectPlusConfigParser:
                             "controller_key": controller_key,
                             "end_phase_key": intergreens_table_data[i + 1][0],
                             "start_phase_key": intergreens_table_data[0][j + 1],
-                            "intergreen_time": str_to_int(cell)
+                            "intergreen_time": str_to_int(cell),
                         }
                     )
         return intergreen_records
@@ -799,7 +784,7 @@ class ConnectPlusConfigParser:
                             "controller_key": controller_key,
                             "end_phase_key": intergreens_table_data[i + 1][0],
                             "start_phase_key": intergreens_table_data[0][j + 1],
-                            "intergreen_time": str_to_int(cell)
+                            "intergreen_time": str_to_int(cell),
                         }
                     )
         return intergreen_records
@@ -813,13 +798,13 @@ class ConnectPlusConfigParser:
             return []
         else:
             raise NotImplementedError
-        i=0
+        i = 0
         phase_delays = []
         for i, row in enumerate(page_txt):
-             if row == "Phase from Stage Stage Seconds Phase from Stage Stage Seconds":
-                 break
+            if row == "Phase from Stage Stage Seconds Phase from Stage Stage Seconds":
+                break
 
-        for row in page_txt[i+1: -1]:
+        for row in page_txt[i + 1 : -1]:
             row_split = row.split(" ")
             if len(row_split) > 4:
                 phase_delays.append(
@@ -829,7 +814,7 @@ class ConnectPlusConfigParser:
                         "end_stage_key": str_to_int(row_split[2]),
                         "start_stage_key": str_to_int(row_split[3]),
                         "delay_time": str_to_int(row_split[4]),
-                        "is_absolute": True
+                        "is_absolute": True,
                     }
                 )
             if len(row_split) > 8:
@@ -840,7 +825,7 @@ class ConnectPlusConfigParser:
                         "end_stage_key": row_split[7],
                         "start_stage_key": row_split[8],
                         "delay_time": row_split[9],
-                        "is_absolute": True
+                        "is_absolute": True,
                     }
                 )
         return phase_delays
@@ -850,13 +835,13 @@ class ConnectPlusConfigParser:
         if not page:
             return []
         page_txt = page.extract_text().split("\n")
-        i=0
+        i = 0
         phase_delays = []
         for i, row in enumerate(page_txt):
-             if row == "Phase from Stage Stage Seconds Phase from Stage Stage Seconds":
-                 break
+            if row == "Phase from Stage Stage Seconds Phase from Stage Stage Seconds":
+                break
 
-        for row in page_txt[i+1: -1]:
+        for row in page_txt[i + 1 : -1]:
             row_split = row.split(" ")
             if len(row_split) > 4:
                 phase_delays.append(
@@ -866,7 +851,7 @@ class ConnectPlusConfigParser:
                         "end_stage_key": str_to_int(row_split[2]),
                         "start_stage_key": str_to_int(row_split[3]),
                         "delay_time": str_to_int(row_split[4]),
-                        "is_absolute": True
+                        "is_absolute": True,
                     }
                 )
             if len(row_split) > 8:
@@ -877,7 +862,7 @@ class ConnectPlusConfigParser:
                         "end_stage_key": row_split[7],
                         "start_stage_key": row_split[8],
                         "delay_time": row_split[9],
-                        "is_absolute": True
+                        "is_absolute": True,
                     }
                 )
         return phase_delays
@@ -893,7 +878,7 @@ class ConnectPlusConfigParser:
                 "y_coord": 0,
                 "address": self.get_text_after_substrings(page_txt_list, "Intersection description: "),
                 "spec_issue_no": self.get_text_between_substrings(page_txt_list, "Issue: ", "Configuration engineer"),
-                "is_pedestrian_controller": False
+                "is_pedestrian_controller": False,
             }
         ]
         return controller_records
@@ -909,7 +894,7 @@ class ConnectPlusConfigParser:
                 "y_coord": 0,
                 "address": "",
                 "spec_issue_no": "",
-                "is_pedestrian_controller": False
+                "is_pedestrian_controller": False,
             }
         ]
         return controller_records
@@ -926,7 +911,7 @@ class ConnectPlusConfigParser:
                 "y_coord": 0,
                 "address": self.get_text_after_substrings(page_txt_list, "Intersection", ": "),
                 "spec_issue_no": self.get_text_after_substrings(page_txt_list, "Issue"),
-                "is_pedestrian_controller": False
+                "is_pedestrian_controller": False,
             }
         ]
         return controller_records
@@ -937,7 +922,7 @@ class ConnectPlusConfigParser:
             end_index = line.find(substring_2)
             if start_index != -1 and end_index != -1:
                 # Get the text between the substrings (excluding the substrings themselves)
-                result = line[start_index + len(substring_1):end_index].strip()
+                result = line[start_index + len(substring_1) : end_index].strip()
                 return result
 
     def get_text_after_substrings(self, page_txt_list, substring, strip_substring=None):
@@ -945,7 +930,7 @@ class ConnectPlusConfigParser:
             index = line.find(substring)
             if index != -1:
                 # Get the text between the substrings (excluding the substrings themselves)
-                result = line[index + len(substring):].strip()
+                result = line[index + len(substring) :].strip()
                 if strip_substring:
                     return result.replace(strip_substring, "")
                 else:
@@ -956,7 +941,7 @@ class ConnectPlusConfigParser:
             index = line.find(substring)
             if index != -1:
                 # Get the text between the substrings (excluding the substrings themselves)
-                result = line[: index].strip()
+                result = line[:index].strip()
                 if strip_substring:
                     return result.replace(strip_substring, "")
                 else:
@@ -981,13 +966,8 @@ class ConnectPlusConfigParser:
 
     def stage_siemens_data_factory(self, stages_in_streams, phases_in_stages, phase_records, controller_key):
         phase_records_dict = {a["phase_ref"]: a for a in phase_records}
-        if not any([a["stage_number"]==0 for a in stages_in_streams]):
-            stages_in_streams.insert(0,
-                {
-                    "stage_number": 0,
-                    "stream_number": 1
-                }
-            )
+        if not any([a["stage_number"] == 0 for a in stages_in_streams]):
+            stages_in_streams.insert(0, {"stage_number": 0, "stream_number": 1})
 
         phases_in_stages_dict = defaultdict(list)
         for phase_in_stage in phases_in_stages:
@@ -1024,16 +1004,16 @@ class ConnectPlusConfigParser:
                 for phase_key in stage["phase_keys_in_stage"]:
                     phase_record = phase_records_dict[phase_key]
                     if phase_record["phase_type_str"] != "D" and "dummy" not in phase_record["text"].lower():
-                        self.signal_emulator.logger.warning(f"Stage definition error likely: {controller_key} - {stage}")
+                        self.signal_emulator.logger.warning(
+                            f"Stage definition error likely: {controller_key} - {stage}"
+                        )
         return stage_records
 
     def remove_new_lines(self, phase_conditions):
-        return [[s.replace('\n', ' ') for s in row] for row in phase_conditions]
-
+        return [[s.replace("\n", " ") for s in row] for row in phase_conditions]
 
 
 if __name__ == "__main__":
     pdf_path = r"D:\gitworks\signal_emulator\signal_emulator\resources\connect_plus\J05111x - M25 J2 - South\Configuration File\M25_J2_cont1_R12.pdf"
     cpcp = ConnectPlusConfigParser()
     tables = cpcp.parse_siemens_config_pdf(pdf_path)
-

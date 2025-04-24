@@ -1,14 +1,20 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from signal_emulator.controller import BaseCollection
 from signal_emulator.enums import Cell
 from signal_emulator.utilities.utility_functions import read_fixed_width_file, clean_site_number, filter_pja_file
 
+if TYPE_CHECKING:
+    from signal_emulator.emulator import SignalEmulator
+
 
 @dataclass(eq=False)
 class PlanTimetable:
-    signal_emulator: object
+    signal_emulator: "SignalEmulator"
     site_number: str
     subgroup: str
     region: str
@@ -80,9 +86,7 @@ class PlanTimetables(BaseCollection):
     def load_from_pja_directory(self, pja_directory_path):
         for period in self.signal_emulator.time_periods:
             for cell in Cell:
-                pja_filepath = os.path.join(
-                    pja_directory_path, period.name, f"{cell.name}_{period.name}.txt"
-                )
+                pja_filepath = os.path.join(pja_directory_path, period.name, f"{cell.name}_{period.name}.txt")
                 if os.path.exists(pja_filepath):
                     self.init_from_pja_file(pja_filepath, period, cell)
                 else:

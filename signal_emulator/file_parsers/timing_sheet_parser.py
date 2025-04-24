@@ -3,7 +3,6 @@ import os
 from collections import defaultdict
 from itertools import zip_longest
 
-from signal_emulator.controller import Controller
 from signal_emulator.utilities.utility_functions import (
     load_json_to_dict,
     dict_to_json_file,
@@ -42,9 +41,7 @@ class TimingSheetParser:
     def __init__(self, signal_emulator=None):
         self.signal_emulator = signal_emulator
 
-    def parse_timing_sheet_csv(
-        self, timing_sheet_csv_path, output_timing_sheet_json=False, signal_emulator=None
-    ):
+    def parse_timing_sheet_csv(self, timing_sheet_csv_path, output_timing_sheet_json=False, signal_emulator=None):
         data_dict = self.timing_sheet_csv_to_dict(timing_sheet_csv_path)
         if output_timing_sheet_json:
             output_timing_sheet_path = timing_sheet_csv_path.replace(".csv", ".json")
@@ -70,13 +67,9 @@ class TimingSheetParser:
                     controller_key,
                 )
             elif section == "Intergreens":
-                processed_args["intergreens"] = self.intergreen_data_factory(
-                    section_data, controller_key
-                )
+                processed_args["intergreens"] = self.intergreen_data_factory(section_data, controller_key)
             elif section == "Phase Delays":
-                processed_args["phase_delays"] = self.phase_delay_data_factory(
-                    section_data, controller_key
-                )
+                processed_args["phase_delays"] = self.phase_delay_data_factory(section_data, controller_key)
             elif section == "Prohibited Stages":
                 processed_args["prohibited_stage_moves"] = self.prohibited_stage_move_data_factory(
                     section_data, controller_key
@@ -84,15 +77,13 @@ class TimingSheetParser:
             elif section == "Timings":
                 processed_args["streams"] = self.ped_stream_data_factory(controller_key)
                 processed_args["phases"] = self.ped_phase_data_factory(section_data, controller_key)
-                processed_args["intergreens"] = self.ped_intergreen_data_factory(
-                    section_data, controller_key
-                )
+                processed_args["intergreens"] = self.ped_intergreen_data_factory(section_data, controller_key)
             elif section == "Stages" and "Timings" in data_dict:
                 processed_args["stages"] = self.ped_stage_data_factory(section_data, controller_key)
             elif section == "Phase Stage Demand Dependency":
-                processed_args[
-                    "phase_stage_demand_dependencies"
-                ] = self.phase_stage_demand_dependency_data_factory(section_data, data_dict["Stages"], controller_key)
+                processed_args["phase_stage_demand_dependencies"] = self.phase_stage_demand_dependency_data_factory(
+                    section_data, data_dict["Stages"], controller_key
+                )
 
         return processed_args
 
@@ -127,10 +118,7 @@ class TimingSheetParser:
                         "termination_type_int": 0,
                     }
                 )
-            elif (
-                timing_record["period_change_key"] == "B"
-                or timing_record["ped_aspect"] == "Green Man"
-            ):
+            elif timing_record["period_change_key"] == "B" or timing_record["ped_aspect"] == "Green Man":
                 phase_records.append(
                     {
                         "controller_key": controller_key,
@@ -158,7 +146,7 @@ class TimingSheetParser:
                 "y_coord": int(y_coord),
                 "address": self.get_from_site_details(details_data, "Address"),
                 "spec_issue_no": self.get_from_site_details(details_data, "Issue"),
-                "is_pedestrian_controller": bool(timings_data)
+                "is_pedestrian_controller": bool(timings_data),
             }
         ]
         return controller_records
@@ -179,26 +167,43 @@ class TimingSheetParser:
                 )
         return stream_records
 
+    @staticmethod
+    def is_numeric(s):
+        try:
+            int(s)
+            return True
+        except (ValueError, TypeError):
+            return False
+
     def stage_data_factory(self, stream_data, stage_data, phase_timings, controller_key):
-        if stage_data[0]["stage_name"] not in {a["stage_name"] for a in stream_data}:
+        stages_names_in_streams = {clean_stage_name(a["stage_name"]) for a in stream_data}
+        stage_numbers_in_streams = {
+            int(clean_stage_name(a["stage_name"]))
+            for a in stream_data
+            if self.is_numeric(clean_stage_name(a["stage_name"]))
+        }
+        dd = 55
+        if (
+            stage_data[0]["stage_name"] not in stages_names_in_streams
+            and int(stage_data[0]["stage_number"]) not in stage_numbers_in_streams
+        ):
             self.signal_emulator.logger.info(f"Controller: {controller_key}: All red stage assumed with no phases")
-            stream_data.insert(0,
+            stream_data.insert(
+                0,
                 {
                     "phase_ref": None,
                     "site_code": stream_data[0]["site_code"],
                     "stage_name": stage_data[0]["stage_name"],
                     "stream_number": stream_data[0]["stream_number"],
-                    "x": "X"
-                }
+                    "x": "X",
+                },
             )
 
         stages_names_in_streams = {clean_stage_name(a["stage_name"]) for a in stream_data}
         stage_name_to_stream_numbers = defaultdict(list)
         for stream in stream_data:
             if stream["stream_number"] not in stage_name_to_stream_numbers[stream["stage_name"]]:
-                stage_name_to_stream_numbers[clean_stage_name(stream["stage_name"])].append(
-                    stream["stream_number"]
-                )
+                stage_name_to_stream_numbers[clean_stage_name(stream["stage_name"])].append(stream["stream_number"])
 
         stage_name_and_stream_to_number = {}
         for stage in stage_data:
@@ -206,15 +211,10 @@ class TimingSheetParser:
             stage_number = stage["stage_number"]
             if stage_name in stages_names_in_streams:
                 stream_number = str_to_int(stage_name_to_stream_numbers[stage_name].pop(0))
-                stage_name_and_stream_to_number[stage_name, stream_number] = str_to_int(
-                    stage["stage_number"]
-                )
+                stage_name_and_stream_to_number[stage_name, stream_number] = str_to_int(stage["stage_number"])
             elif stage_number in stages_names_in_streams:
                 stream_number = str_to_int(stage_name_to_stream_numbers[stage_number].pop(0))
-                stage_name_and_stream_to_number[stage_number, stream_number] = str_to_int(
-                    stage["stage_number"]
-                )
-
+                stage_name_and_stream_to_number[stage_number, stream_number] = str_to_int(stage["stage_number"])
 
         stream_no_stage_name_list = list(stage_name_and_stream_to_number.keys())
         if "0" not in {a["stage_number"] for a in stage_data}:
@@ -244,15 +244,11 @@ class TimingSheetParser:
             if next_stream_record:
                 next_stream_number = str_to_int(next_stream_record["stream_number"])
                 next_stage_name = clean_stage_name(next_stream_record["stage_name"])
-                next_stage_number = stage_name_and_stream_to_number[
-                    next_stage_name, next_stream_number
-                ]
+                next_stage_number = stage_name_and_stream_to_number[next_stage_name, next_stream_number]
             else:
                 next_stage_number = None
 
-            stream_stage_number = stage_name_to_stream_stage_number[
-                this_stage_name, this_stream_number
-            ]
+            stream_stage_number = stage_name_to_stream_stage_number[this_stage_name, this_stream_number]
             if stream_record["phase_ref"]:
                 phases_in_stage.append(stream_record["phase_ref"])
             if this_stage_number != next_stage_number:
@@ -281,12 +277,8 @@ class TimingSheetParser:
                     "phase_ref": phase_record["phase_ref"],
                     "min_time": str_to_int(phase_record["min_time"]),
                     "phase_type_str": phase_record["phase_type"],
-                    "text": clean_stage_name(
-                        phase_type_and_conditions_by_ref[this_phase_ref]["phase_name"]
-                    ),
-                    "associated_phase_ref": phase_type_and_conditions_by_ref[this_phase_ref][
-                        "associated_phase_ref"
-                    ],
+                    "text": clean_stage_name(phase_type_and_conditions_by_ref[this_phase_ref]["phase_name"]),
+                    "associated_phase_ref": phase_type_and_conditions_by_ref[this_phase_ref]["associated_phase_ref"],
                     "appearance_type_int": str_to_int(
                         phase_type_and_conditions_by_ref[this_phase_ref]["appearance_type"]
                     ),
@@ -432,9 +424,7 @@ class TimingSheetParser:
                 continue
             timing_sheet_path = os.path.join(timing_sheet_directory_path, filename)
             if os.path.exists(
-                os.path.join(
-                    timing_sheet_directory_path, "fixed", filename.replace(".csv", "_fixed.csv")
-                )
+                os.path.join(timing_sheet_directory_path, "fixed", filename.replace(".csv", "_fixed.csv"))
             ):
                 timing_sheet_path = os.path.join(
                     timing_sheet_directory_path, "fixed", filename.replace(".csv", "_fixed.csv")
@@ -456,7 +446,7 @@ class TimingSheetParser:
             for section in ["Stages", "Phase Timings", "Streams"]:
                 if len(timing_sheet_dict[section]) == 0:
                     self.signal_emulator.logger.warning(
-                        f"Timing sheet: {timing_sheet_csv_path} is invalid. Section: {section} contain not data"
+                        f"Timing sheet: {timing_sheet_csv_path} is invalid. Section: {section} contains no data"
                     )
                     valid = False
             return valid
@@ -464,7 +454,7 @@ class TimingSheetParser:
             for section in ["Timings", "Stages"]:
                 if len(timing_sheet_dict[section]) == 0:
                     self.signal_emulator.logger.warning(
-                        f"Timing sheet: {timing_sheet_csv_path} is invalid. Section: {section} contain not data"
+                        f"Timing sheet: {timing_sheet_csv_path} is invalid. Section: {section} contains no data"
                     )
                     valid = False
             return valid
@@ -518,7 +508,9 @@ class TimingSheetParser:
         return intergreen_records
 
     def phase_stage_demand_dependency_data_factory(self, section_data, stage_data, controller_key):
-        stage_name_to_number = {clean_stage_name(stage["stage_name"]): int(stage["stage_number"]) for stage in stage_data}
+        stage_name_to_number = {
+            clean_stage_name(stage["stage_name"]): int(stage["stage_number"]) for stage in stage_data
+        }
         stage_number_to_number = {stage["stage_number"]: int(stage["stage_number"]) for stage in stage_data}
         phase_stage_demand_dependency = []
 
