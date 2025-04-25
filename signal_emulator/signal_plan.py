@@ -69,14 +69,12 @@ class SignalPlan(BaseItem):
                 cycle_time = self.cycle_time
             cycle_times.append(cycle_time)
         all_equal = all(x == cycle_times[0] for x in cycle_times)
-        controller_cycle_time = max(cycle_times)
         if not all_equal:
             self.signal_emulator.logger.warning(f"Stream cycle times not equal {self.controller_key} {cycle_times}")
 
         for signal_plan_stream in self.signal_plan_streams:
             self.signal_emulator.logger.info(f"Emulating Signal Plan Stream: {signal_plan_stream.site_id}")
-            controller_cycle_time = max(cycle_times)
-            signal_plan_stream.emulate(controller_cycle_time)
+            signal_plan_stream.emulate()
 
 
 class SignalPlans(BaseCollection):
@@ -311,7 +309,7 @@ class SignalPlanStream(BaseItem):
     def stream_number_controller(self):
         return self.stream_number - 1
 
-    def emulate(self, controller_cycle_time):
+    def emulate(self):
         self.signal_emulator.time_periods.active_period_id = self.signal_plan.time_period_id
 
         self.stream.active_stage_key = self.stream.controller_key, self.signal_plan_stages[-1].stage_number
@@ -333,16 +331,10 @@ class SignalPlanStream(BaseItem):
         all_phases_used = {phase for sps in self.signal_plan_stages for phase in sps.stage.phases_in_stage}
         for index, signal_plan_stage in enumerate(self.signal_plan_stages + [self.signal_plan_stages[0]]):
             current_stage = self.stream.active_stage
-            end_phases = self.signal_emulator.stages.get_end_phases(current_stage, signal_plan_stage.stage)
-            start_phases = self.signal_emulator.stages.get_start_phases(current_stage, signal_plan_stage.stage)
             controller_interstage_time = self.get_interstage_time(
                 current_stage,
                 signal_plan_stage.stage,
             )
-
-            if controller_interstage_time < signal_plan_stage.interstage_length:
-                pass
-                # print(stream.controller_key, controller_interstage_time, signal_plan_stage.interstage_length)
 
             if controller_interstage_time > signal_plan_stage.interstage_length:
                 self.signal_emulator.logger.info(
@@ -355,6 +347,13 @@ class SignalPlanStream(BaseItem):
                     start_stage_key=signal_plan_stage.stage_number,
                     interstage_time=signal_plan_stage.interstage_length,
                 )
+            self.stream.active_stage_key = (self.stream.controller_key, signal_plan_stage.stage_number)
+
+        self.stream.active_stage_key = self.stream.controller_key, self.signal_plan_stages[-1].stage_number
+        for index, signal_plan_stage in enumerate(self.signal_plan_stages + [self.signal_plan_stages[0]]):
+            current_stage = self.stream.active_stage
+            end_phases = self.signal_emulator.stages.get_end_phases(current_stage, signal_plan_stage.stage)
+            start_phases = self.signal_emulator.stages.get_start_phases(current_stage, signal_plan_stage.stage)
 
             if not index == 0:
                 for end_phase in end_phases:
@@ -581,7 +580,9 @@ class SignalPlanStream(BaseItem):
         self.signal_emulator.logger.info(
             f"interstage_time: {original_interstage}, reduced interstage: {reduced_interstage}"
         )
-        assert interstage_time == reduced_interstage
+        assert (
+            interstage_time == reduced_interstage
+        ), f"{controller_key}, {end_stage_key}, {start_stage_key}, {interstage_time}"
 
     def get_interstage_time(self, end_stage, start_stage, modified=True):
         end_phases = self.signal_emulator.stages.get_end_phases(end_stage, start_stage)
