@@ -181,7 +181,7 @@ class ConnectPlusConfigParser:
                 phases_table = table
                 break
         else:
-            print("ahhhh")
+            raise Exception("Ahhhh")
         table_rects_1 = [
             a
             for a in page.objects["rect"]

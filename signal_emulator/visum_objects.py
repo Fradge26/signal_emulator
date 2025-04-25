@@ -28,6 +28,9 @@ class VisumCollection(BaseCollection):
         self.signal_emulator = signal_emulator
         self.output_directory = output_directory
 
+    def iter_sorted(self):
+        raise NotImplementedError("Subclasses must implement this method")
+
     def export_all_to_net_files(self, output_path=None):
         if not output_path:
             output_path = os.path.join(
@@ -36,7 +39,7 @@ class VisumCollection(BaseCollection):
             )
         output_data = copy(self.OUTPUT_HEADER)
         output_data.append(self.add_column_header())
-        for item in self:
+        for item in self.iter_sorted():
             output_data.append([getattr(item, attr_name) for attr_name in self.COLUMNS.values()])
         Path(output_path).parent.mkdir(exist_ok=True, parents=True)
         list_to_csv(output_data, output_path, delimiter=";")
@@ -158,6 +161,10 @@ class VisumSignalGroups(VisumCollection):
         )
         self.signal_emulator = signal_emulator
 
+    def iter_sorted(self):
+        for item in sorted(self, key=lambda x: (x.controller_key, x.phase_number)):
+            yield item
+
     def add_from_phase_timing(self, phase_timing):
         visum_signal_group = VisumSignalGroup(
             controller_key=phase_timing.controller_key,
@@ -245,6 +252,10 @@ class VisumSignalControllers(VisumCollection):
         self.signal_emulator = signal_emulator
         self.sld_directory = Path(sld_directory)
         self.timing_sheet_directory = Path(timing_sheet_directory)
+
+    def iter_sorted(self):
+        for item in sorted(self, key=lambda x: x.controller_key):
+            yield item
 
     def add_visum_signal_controller(self, controller_key, name, cycle_time, time_period_id, source_data, mode):
         signal_controller = VisumSignalController(

@@ -32,8 +32,11 @@ class Plan:
         new_line = "\n"
         return (
             f"site id: {self.site_id} plan number: {self.plan_number} cycle time: {self.cycle_time}{new_line}"
-            f"{new_line.join([str(p) for p in self.plan_sequence_items])}"
+            f"{new_line.join([str(p) for p in self.iter_plan_sequence_items()])}"
         )
+
+    def iter_plan_sequence_items(self):
+        return iter(sorted(self.plan_sequence_items, key=lambda x: x.get_key()))
 
     def get_key(self):
         return self.site_id, self.plan_number
@@ -46,7 +49,7 @@ class Plan:
         return time % cycle_time
 
     def validate(self):
-        return any(psi.has_f_bits() or psi.has_p_bits() for psi in self.plan_sequence_items)
+        return any(psi.has_f_bits() or psi.has_p_bits() for psi in self.iter_plan_sequence_items())
 
     def get_interstage_time(self, end_stage, start_stage, modified=True):
         end_phases = self.signal_emulator.stages.get_end_phases(end_stage, start_stage)
@@ -88,7 +91,7 @@ class Plan:
     def get_initial_stage_id(self, m37_stages, stream):
         m37_check = len(m37_stages) > 0
         initial_stage_id = None
-        for plan_sequence_item in self.plan_sequence_items:
+        for plan_sequence_item in self.iter_plan_sequence_items():
             # self.plan_sequence_items.active_index = plan_sequence_item.index
             stage_id = self.process_plan_sequence_item_initial(plan_sequence_item, m37_check, stream)
             if stage_id:
@@ -135,20 +138,18 @@ class Plan:
     def get_stage_sequence_pedestrian(self, m37_stages, stream, stream_cycle_time=None, controller_cycle_time=None):
         stage_sequence = DefaultList(None)
         m37_check = len(m37_stages) > 1
-        # set the initial stage number
-        # stream.active_stage_key = self.get_initial_stage_id_ped(m37_stages, stream)
         active_stage = self.signal_emulator.stages.get_by_stream_number_and_stage_number(
             stream.controller_key, stream.stream_number, 1
         )
         stream.active_stage_key = active_stage.controller_key, active_stage.stage_number
         plan_sequence_items = []
-        for psi in self.plan_sequence_items:
+        for psi in self.iter_plan_sequence_items():
             if psi.f_bits == ["F2"]:
                 plan_sequence_items.append(psi)
                 break
         else:
             raise ValueError
-        for psi in self.plan_sequence_items:
+        for psi in self.iter_plan_sequence_items():
             if psi.f_bits == ["F1"]:
                 plan_sequence_items.append(psi)
                 break
@@ -210,7 +211,7 @@ class Plan:
         m37_check = len(m37_stages) > 0
         # set the initial stage number
         stream.active_stage_key = self.get_initial_stage_id(m37_stages, stream)
-        for plan_sequence_item in self.plan_sequence_items:
+        for plan_sequence_item in self.iter_plan_sequence_items():
             # self.plan_sequence_items.active_index = plan_sequence_item.index
             previous_stage_sequence_item = stage_sequence[-1]
             new_stage_sequence_item = self.process_plan_sequence_item(
@@ -394,7 +395,7 @@ class Plan:
             )
             not_road_green_phase = not_road_green_stage.phases_in_stage[0]
             ped_green_man_time = not_road_green_phase.min_time
-            ig_ped = self.get_interstage_time(road_green_stage, not_road_green_stage)
+            ig_ped = self.get_interstage_time(road_green_stage, not_road_green_stage, modified=False)
             if not_road_green_stage.m37_exists(self.site_id):
                 m37_not_road_green_time = not_road_green_stage.get_m37(self.site_id).total_time
                 effective_stage_call_rate = m37_not_road_green_time / (ig_ped + ped_green_man_time)
@@ -409,7 +410,7 @@ class Plan:
             )
             not_road_green_phase = not_road_green_stage.phases_in_stage[0]
             ped_green_man_time = not_road_green_phase.min_time
-            ig_ped = self.get_interstage_time(road_green_stage, not_road_green_stage)
+            ig_ped = self.get_interstage_time(road_green_stage, not_road_green_stage, modified=False)
             if not_road_green_stage.m37_exists(self.site_id):
                 m37_not_road_green_time = not_road_green_stage.get_m37(self.site_id).total_time
                 effective_stage_call_rate = 1

@@ -22,7 +22,9 @@ class BaseCollection:
     TABLE_NAME = None
     ITEM_CLASS = None
     DATACLASS_TO_SQL_TYPE_MAP = {
+        "List": sqlalchemy.ARRAY(sqlalchemy.types.String),
         List: sqlalchemy.ARRAY(sqlalchemy.types.String),
+        "List[str]": sqlalchemy.ARRAY(sqlalchemy.types.String),
         List[str]: sqlalchemy.ARRAY(sqlalchemy.types.String),
     }
 

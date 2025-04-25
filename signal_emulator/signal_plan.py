@@ -157,7 +157,7 @@ class SignalPlans(BaseCollection):
                 )
                 m37 = this_ssi.stage.get_m37(stream.site_number)
                 if m37 and m37.utc_stage_id not in {"PG", "GX"}:
-                    interstage_length = round(m37.interstage_time * cycle_time_factor, 0)
+                    interstage_length = int(round(m37.interstage_time * cycle_time_factor, 0))
                 else:
                     interstage_length = signal_plan_stream.get_interstage_time(
                         previous_ssi.stage, this_ssi.stage, modified=False
@@ -534,7 +534,9 @@ class SignalPlanStream(BaseItem):
                 )
                 if end_phase_delay.delay_time + intergreen.intergreen_time > interstage_time:
                     old_interstage_time = end_phase_delay.delay_time + intergreen.intergreen_time
-                    new_end_phase_delay_time = round(end_phase_delay.delay_time * interstage_time / old_interstage_time)
+                    new_end_phase_delay_time = int(
+                        round(end_phase_delay.delay_time * interstage_time / old_interstage_time, 0)
+                    )
                     new_intergreen_time = interstage_time - new_end_phase_delay_time
                     if new_intergreen_time < intergreen_mod.intergreen_time:
                         self.signal_emulator.modified_intergreens.add_item(
