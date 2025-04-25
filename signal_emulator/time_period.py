@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from signal_emulator.controller import BaseCollection
-from signal_emulator.utilities.utility_functions import time_str_to_timedelta, time_str_to_time
+from signal_emulator.utilities.utility_functions import time_str_to_timedelta
+
+if TYPE_CHECKING:
+    from signal_emulator.emulator import SignalEmulator
 
 
 @dataclass(eq=False)
@@ -13,12 +19,13 @@ class TimePeriod:
     """
     Class to represent a time Period.
     """
+
     name: str
     index: int
     start_time_str: str
     end_time_str: str
     long_name: Optional[str] = None
-    signal_emulator: Optional[object] = None
+    signal_emulator: Optional[SignalEmulator] = None
 
     def __post_init__(self):
         self.start_time = time_str_to_timedelta(self.start_time_str)
@@ -46,6 +53,7 @@ class TimePeriods(BaseCollection):
     """
     Class to represent time periods
     """
+
     TABLE_NAME = "time_periods"
     ITEM_CLASS = TimePeriod
     WRITE_TO_DATABASE = True
@@ -68,7 +76,7 @@ class TimePeriods(BaseCollection):
                     "name": period_record["name"],
                     "index": period_record["number"],
                     "start_time_str": time_str_to_timedelta(period_record["start_time_str"]),
-                    "end_time_str": time_str_to_timedelta(period_record["end_time_str"])
+                    "end_time_str": time_str_to_timedelta(period_record["end_time_str"]),
                 }
             )
         return cls(processed_args, signal_emulator)
@@ -107,8 +115,6 @@ class TimePeriods(BaseCollection):
             if period.start_time <= target_timedelta <= period.end_time:
                 return period.name
         return np.NAN
-
-
 
 
 if __name__ == "__main__":

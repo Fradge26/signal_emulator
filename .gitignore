@@ -1,4 +1,8 @@
-
+signal_emulator/resources/**
+!signal_emulator/resources/configs/
+!signal_emulator/resources/configs/**
+!signal_emulator/resources/m37/
+!signal_emulator/resources/m37/**
 *.log
 *.pyc
 *.lsg

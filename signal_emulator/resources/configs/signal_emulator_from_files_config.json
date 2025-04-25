@@ -4,11 +4,11 @@
         "database": "tfl_signal_timings",
         "user": "postgres",
         "port": 5432,
-        "schema": "v0_0_7_j10290"
+        "schema": "v0_0_9_all_v4"
     },
     "load_from_postgres": false,
     "M37": {
-        "m37_path": "signal_emulator/resources/M37/averaged/m37_averaged_240125_fixed.csv",
+        "m37_path": "signal_emulator/resources/M37/averaged/m37_all_averaged_250416_fixed.csv",
         "source_type": "averaged",
         "export_to_csv_path": false
     },
@@ -19,15 +19,17 @@
     },
     "timing_sheet_directory": "signal_emulator/resources/timing_sheets",
     "connect_plus_directory": "signal_emulator/resources/connect_plus",
-    "borough_codes": [10],
+    "borough_codes": [],
     "ped_only": false,
     "timing_sheet_column_config": "signal_emulator/resources/timing_sheet_column_lookup.json",
     "plan_directory": "signal_emulator/resources/plans_231130",
     "PJA_directory": "signal_emulator/resources/PJA",
     "saturn_lookup_file": "signal_emulator/resources/phase_to_saturn_turns/phase_to_saturn_turns_b0_13_14_15_16_17_31.csv",
-    "output_directory_visum": "signal_emulator/output/VISUM/v0_0_7_j10290",
-    "output_directory_linsig": "signal_emulator/output/LINSIG/v0_0_7_j10290",
-    "output_directory_saturn": "signal_emulator/output/SATURN/v0_0_7_j10290",
+    "output_directory_visum": "signal_emulator/output/VISUM/v0_0_9_all_v4",
+    "output_directory_linsig": "signal_emulator/output/LINSIG/v0_0_9_all_v4",
+    "output_directory_saturn": "signal_emulator/output/SATURN/v0_0_9_all_v4",
     "sld_pdf_directory": "\\\\onelondon.tfl.local\\shared\\OMVHUB\\Assignment Modelling\\ONE Model\\Development\\2023 P6\\05 Data\\01 Signal\\sld_pdf_231201",
-    "timing_sheet_pdf_directory": "\\\\onelondon.tfl.local\\shared\\OMVHUB\\Assignment Modelling\\ONE Model\\Development\\2023 P6\\05 Data\\01 Signal\\timing_sheets_pdf_231201"
+    "timing_sheet_pdf_directory": "\\\\onelondon.tfl.local\\shared\\OMVHUB\\Assignment Modelling\\ONE Model\\Development\\2023 P6\\05 Data\\01 Signal\\timing_sheets_pdf_231201",
+    "effective_green_time_adjustment": 1,
+    "log_level": "INFO"
 }

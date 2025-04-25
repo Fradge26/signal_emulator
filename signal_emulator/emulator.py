@@ -14,14 +14,15 @@ from signal_emulator.controller import (
     PhaseTimings,
     ModifiedIntergreens,
     ModifiedPhaseDelays,
-    PhaseStageDemandDependencies
+    PhaseStageDemandDependencies,
 )
+from signal_emulator.coordinate_transformer import CoordinateTransformer
 from signal_emulator.enums import Cell
-from signal_emulator.file_parsers.plan_parser import PlanParser
-from signal_emulator.file_parsers.connect_plus_plan_parser import ConnectPlusPlanParser
-from signal_emulator.file_parsers.timing_sheet_parser import TimingSheetParser
 from signal_emulator.file_parsers.connect_plus_config_parser import ConnectPlusConfigParser
+from signal_emulator.file_parsers.connect_plus_plan_parser import ConnectPlusPlanParser
 from signal_emulator.file_parsers.connect_plus_timetable_parser import ConnectPlusTimetableParser
+from signal_emulator.file_parsers.plan_parser import PlanParser
+from signal_emulator.file_parsers.timing_sheet_parser import TimingSheetParser
 from signal_emulator.linsig import Linsig
 from signal_emulator.m16_average import M16Averages
 from signal_emulator.m37_average import M37Averages
@@ -33,7 +34,6 @@ from signal_emulator.time_period import TimePeriods
 from signal_emulator.utilities.postgres_connection import PostgresConnection
 from signal_emulator.utilities.utility_functions import load_json_to_dict
 from signal_emulator.visum_objects import VisumSignalGroups, VisumSignalControllers
-from signal_emulator.coordinate_transformer import CoordinateTransformer
 
 
 class SignalEmulator:
@@ -41,7 +41,7 @@ class SignalEmulator:
     DEFAULT_TIME_PERIODS_PATH = os.path.join(BASE_DIRECTORY, "resources/time_periods/default_time_periods.json")
 
     def __init__(self, config):
-        self.logger = self.setup_logger()
+        self.logger = self.setup_logger(config.get("log_level", "INFO"))
         self.logger.info(f"Starting run of signal_emulator.py")
         if "postgres_connection" in config:
             self.postgres_connection = PostgresConnection(**config["postgres_connection"])
@@ -75,13 +75,13 @@ class SignalEmulator:
         self.plan_timetables = PlanTimetables(self)
         if config.get("timing_sheet_directory"):
             self.load_timing_sheets_from_directory(
-                timing_sheet_directory=config["timing_sheet_directory"],
-                borough_codes=config.get("borough_codes")
+                timing_sheet_directory=config["timing_sheet_directory"], borough_codes=config.get("borough_codes")
             )
         if config.get("connect_plus_directory"):
             self.connect_plus_config_parser = ConnectPlusConfigParser(self)
             self.connect_plus_plan_parser = ConnectPlusPlanParser(self)
             self.connect_plus_timetable_parser = ConnectPlusTimetableParser(self)
+            self.load_connect_plus_configs_from_directory(config_directory=config["connect_plus_directory"])
             self.load_connect_plus_configs_from_directory(config_directory=config["connect_plus_directory"])
             self.load_connect_plus_timetables_from_directory(config_directory=config["connect_plus_directory"])
             self.load_connect_plus_plans_from_directory(config_directory=config["connect_plus_directory"])
@@ -102,19 +102,15 @@ class SignalEmulator:
         self.signal_plans = SignalPlans([], self)
         self.signal_plan_streams = SignalPlanStreams([], self)
         self.signal_plan_stages = SignalPlanStages([], self)
-        self.phase_timings = PhaseTimings([], self)
-        self.saturn_signal_groups = SaturnSignalGroups(
-            [], self, config.get("output_directory_saturn", None)
-        )
-        self.visum_signal_groups = VisumSignalGroups(
-            [], self, config.get("output_directory_visum", None)
-        )
+        self.phase_timings = PhaseTimings([], config.get("effective_green_time_adjustment", 0), self)
+        self.saturn_signal_groups = SaturnSignalGroups([], self, config.get("output_directory_saturn", None))
+        self.visum_signal_groups = VisumSignalGroups([], self, config.get("output_directory_visum", None))
         self.visum_signal_controllers = VisumSignalControllers(
             [],
             self,
             config.get("output_directory_visum", None),
             config.get("sld_pdf_directory"),
-            config.get("timing_sheet_pdf_directory")
+            config.get("timing_sheet_pdf_directory"),
         )
         self.phase_to_saturn_turns = PhaseToSaturnTurns(
             signal_emulator=self, saturn_lookup_file=config.get("saturn_lookup_file", None)
@@ -125,12 +121,14 @@ class SignalEmulator:
     def find_streams_without_all_red_stage_first(self):
         stream_codes = []
         for stream in self.streams:
-            stage_phase_types_set = {tuple(phase.phase_type.name for phase in stage.phases_in_stage) for stage in
-                                      stream.stages_in_stream}
-            stage_phase_types_list = [[phase.phase_type.name for phase in stage.phases_in_stage] for
-                                      stage in stream.stages_in_stream]
+            stage_phase_types_set = {
+                tuple(phase.phase_type.name for phase in stage.phases_in_stage) for stage in stream.stages_in_stream
+            }
+            stage_phase_types_list = [
+                [phase.phase_type.name for phase in stage.phases_in_stage] for stage in stream.stages_in_stream
+            ]
             if stage_phase_types_set == {("D",), ("T",), ("P",)} and len(stage_phase_types_list) == 3:
-                if stage_phase_types_list != [['D'], ['T'], ['P']]:
+                if stage_phase_types_list != [["D"], ["T"], ["P"]]:
                     stream_codes.append([stream.controller_key, stream.site_number])
                     self.logger.warning(
                         f"Controller: {stream.controller_key} Stream: {stream.site_number} "
@@ -139,25 +137,37 @@ class SignalEmulator:
                     )
         return stream_codes
 
-    @staticmethod
-    def setup_logger():
+    def setup_logger(self, log_level=None):
         if not os.path.exists("log"):
             os.makedirs("log")
+        numeric_level = getattr(logging, log_level.upper(), None)
+        if not isinstance(numeric_level, int):
+            numeric_level = 20
         logging.basicConfig(
             filename=f"log/{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}_signal_emulator.log",
-            level=logging.INFO,
+            level=numeric_level,
             format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         # set up logging to console
         console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
+        console.setLevel(numeric_level)
+
         # set a format which is simpler for console use
         formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
         console.setFormatter(formatter)
         # add the handler to the root logger
         logging.getLogger("").addHandler(console)
+        if log_level:
+            self.set_log_level(log_level)
         return logging.getLogger(__name__)
+
+    @staticmethod
+    def set_log_level(level_str: str):
+        numeric_level = getattr(logging, level_str.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError(f"Invalid log level: {level_str}")
+        logging.basicConfig(level=numeric_level)
 
     def generate_signal_plans(self, ped_only=False):
         """
@@ -176,9 +186,7 @@ class SignalEmulator:
                 stream_plan_dict = self.get_stream_plan_dict(controller)
                 if any(stream_plan_dict.values()):
                     if not ped_only or any([s.is_pv_px_mode for s in stream_plan_dict.keys()]):
-                        self.signal_plans.add_from_stream_plan_dict(
-                            stream_plan_dict, time_period, signal_plan_number
-                        )
+                        self.signal_plans.add_from_stream_plan_dict(stream_plan_dict, time_period, signal_plan_number)
                 else:
                     self.logger.warning(
                         f"Controller: {controller.controller_key} was not processed to signal plans because suitable"
@@ -200,12 +208,10 @@ class SignalEmulator:
     def get_best_matching_plan(self, stream):
         """
         Function to get the best matching plan for a stream
-        :param stream: Stream
+        :param stream: Stream object
         :return: Plan
         """
-        pja = self.plan_timetables.get_by_key(
-            (stream.site_number, self.time_periods.active_period_id)
-        )
+        pja = self.plan_timetables.get_by_key((stream.site_number, self.time_periods.active_period_id))
         # If Plan exists that is referenced in pJA file then return this Plan
         if pja and pja.control_plan:
             self.logger.info(
@@ -222,11 +228,14 @@ class SignalEmulator:
             return plan
         # Else return the first available plan
         non_mins_plans = [p for p in stream.plans if "MINS" not in p.name.upper()]
+        mins_plans = [p for p in stream.plans if "MINS" in p.name.upper()]
         if non_mins_plans:
             plan = non_mins_plans[0]
-            self.logger.info(
-                f"Plan: {plan.plan_number} {plan.name} selected the first available plan"
-            )
+            self.logger.info(f"Plan: {plan.plan_number} {plan.name} selected the first available plan")
+            return plan
+        elif mins_plans:
+            plan = mins_plans[0]
+            self.logger.info(f"Plan: {plan.plan_number} {plan.name} selected the first available plan")
             return plan
         else:
             return None
@@ -240,14 +249,14 @@ class SignalEmulator:
                 return plan
         for plan in stream.plans:
             if "WAT" in plan.name and (
-                self.time_periods.active_period.name in plan.name or
-                self.time_periods.active_period.long_name in plan.name
+                self.time_periods.active_period.name in plan.name
+                or self.time_periods.active_period.long_name in plan.name
             ):
                 return plan
         for plan in stream.plans:
             if (
-                self.time_periods.active_period.name in plan.name or
-                self.time_periods.active_period.long_name in plan.name
+                self.time_periods.active_period.name in plan.name
+                or self.time_periods.active_period.long_name in plan.name
             ):
                 return plan
         return None
@@ -261,14 +270,14 @@ class SignalEmulator:
             return None
 
     def load_timing_sheets_from_directory(self, timing_sheet_directory, borough_codes=None):
-        for csv_filepath in self.timing_sheet_parser.timing_sheet_file_iterator(
-            timing_sheet_directory, borough_codes
-        ):
+        for csv_filepath in self.timing_sheet_parser.timing_sheet_file_iterator(timing_sheet_directory, borough_codes):
             self.load_timing_sheet_csv(csv_filepath)
 
     def load_connect_plus_configs_from_directory(self, config_directory):
         for config_filepath in self.connect_plus_config_parser.config_file_iterator(config_directory):
             self.load_connect_plus_config_pdf(config_filepath)
+        csv_path = os.path.join(config_directory, "timing_sheet_csv")
+        self.load_timing_sheets_from_directory(csv_path)
 
     def load_timing_sheet_csv(self, csv_filepath):
         attrs_dict = self.timing_sheet_parser.parse_timing_sheet_csv(csv_filepath)
@@ -371,13 +380,13 @@ class SignalEmulator:
             )
             if phase_timing.time_period_id == "AM":
                 visum_signal_group.green_time_start_am = phase_timing.start_time
-                visum_signal_group.green_time_end_am = phase_timing.end_time
+                visum_signal_group.green_time_end_am = phase_timing.effective_end_time
             elif phase_timing.time_period_id == "OP":
                 visum_signal_group.green_time_start_op = phase_timing.start_time
-                visum_signal_group.green_time_end_op = phase_timing.end_time
+                visum_signal_group.green_time_end_op = phase_timing.effective_end_time
             elif phase_timing.time_period_id == "PM":
                 visum_signal_group.green_time_start_pm = phase_timing.start_time
-                visum_signal_group.green_time_end_pm = phase_timing.end_time
+                visum_signal_group.green_time_end_pm = phase_timing.effective_end_time
 
     def generate_saturn_signal_groups(self):
         """
@@ -408,7 +417,6 @@ class SignalEmulator:
 if __name__ == "__main__":
     signal_emulator_config = load_json_to_dict(
         json_file_path="signal_emulator/resources/configs/signal_emulator_from_pg_config.json"
-
     )
     signal_emulator = SignalEmulator(config=signal_emulator_config)
     if not signal_emulator_config["load_from_postgres"]:

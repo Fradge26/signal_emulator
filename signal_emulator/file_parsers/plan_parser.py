@@ -96,7 +96,7 @@ class PlanParser:
             if len(command) >= 4:
                 for i in range(0, len(command), 2):
                     assert command[i] in {"F", "D"}
-                    final_commands.append(command[i: i + 2])
+                    final_commands.append(command[i : i + 2])
             else:
                 final_commands.append(command)
         f_bits, d_bits, p_bits, nto = [], [], [], False

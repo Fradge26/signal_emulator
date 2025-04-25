@@ -18,7 +18,7 @@ def run_all(config_path):
 
 
 def run_from_files():
-    run_all(config_path="signal_emulator/resources/configs/signal_emulator_from_files_config_cp.json")
+    run_all(config_path="signal_emulator/resources/configs/signal_emulator_from_files_config.json")
 
 
 def run_from_postgres():

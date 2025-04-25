@@ -8,7 +8,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="signal_emulator",
-    version="0.0.8",
+    version="0.0.9",
     author="Adam Fradgley",
     author_email="adamfradgley@tfl.gov.uk",
     description="TfL Traffic Signal Timings Generator",

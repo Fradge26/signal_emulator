@@ -100,25 +100,21 @@ class SADParser:
                     delta = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
 
                     self.controller_events[site_id].append(
-                        ControllerEvent(
-                            site=site_id, stage=stage_id, timestamp=sad_datetime + delta
-                        )
+                        ControllerEvent(site=site_id, stage=stage_id, timestamp=sad_datetime + delta)
                     )
                     self.site_states[site_id] = stage_id
         t4 = datetime.now()
         print("processing", t4 - t3)
         print(len(self.controller_events))
         self.process_controller_events()
-        self.write_m37_to_csv(
-            f"resources/M37/converted_from_sad/M37_{sad_datetime.strftime('%Y%m%d')}_{cell.name}.csv"
-        )
+        self.write_m37_to_csv(f"resources/M37/converted_from_sad/M37_{sad_datetime.strftime('%Y%m%d')}_{cell.name}.csv")
         # close the file objects!
         for file_obj in file_objects:
             file_obj.close()
 
     @staticmethod
     def is_stage_id_error(stage_string):
-        error = re.findall('(& G\w& G)', stage_string)
+        error = re.findall("(& G\w& G)", stage_string)
         return bool(error)
 
     @staticmethod
@@ -171,15 +167,9 @@ class SADParser:
                         site_id=site,
                         message_id="M37",
                         utc_stage_id=this_stage.stage,
-                        length=int(
-                            (next_interstage.timestamp - this_interstage.timestamp).total_seconds()
-                        ),
-                        green_time=int(
-                            (next_interstage.timestamp - this_stage.timestamp).total_seconds()
-                        ),
-                        interstage_time=int(
-                            (this_stage.timestamp - this_interstage.timestamp).total_seconds()
-                        ),
+                        length=int((next_interstage.timestamp - this_interstage.timestamp).total_seconds()),
+                        green_time=int((next_interstage.timestamp - this_stage.timestamp).total_seconds()),
+                        interstage_time=int((this_stage.timestamp - this_interstage.timestamp).total_seconds()),
                     )
                 )
 

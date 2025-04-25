@@ -25,9 +25,7 @@ class SignalEventParser:
         self.m37_time_by_site = defaultdict(lambda: M37Time())
         self.m37s = []
 
-    def process_signal_event_folder(
-        self, signal_event_folder, output_folder="resources/M37/converted_from_sad"
-    ):
+    def process_signal_event_folder(self, signal_event_folder, output_folder="resources/M37/converted_from_sad"):
         """
         Method to process a folder containing SAD files. Folder and sub folders are searched
         :param signal_event_folder: Signal event folder
@@ -110,10 +108,7 @@ class SignalEventParser:
                 site_id = line[0]
                 event_time = CustomDatetime.strptime(line[1].strip(), "%Y-%m-%d %H:%M:%S")
                 # print(event_time, site_id, stage_id)
-                if (
-                    previous_timestamp[site_id]
-                    and timedelta(minutes=5) < event_time - previous_timestamp[site_id]
-                ):
+                if previous_timestamp[site_id] and timedelta(minutes=5) < event_time - previous_timestamp[site_id]:
                     self.site_states[site_id] = "PRE"
                     self.m37_time_by_site[site_id] = M37Time()
                     aa = 55
@@ -148,9 +143,7 @@ class SignalEventParser:
         print("processing", t4 - t3)
         print(len(self.controller_events))
         self.process_controller_events()
-        self.write_m37_to_csv(
-            os.path.join(output_folder, f"M37_{sad_datetime.strftime('%Y%m%d')}_{cell.name}.csv")
-        )
+        self.write_m37_to_csv(os.path.join(output_folder, f"M37_{sad_datetime.strftime('%Y%m%d')}_{cell.name}.csv"))
         # close the file objects!
         for file_obj in file_objects:
             file_obj.close()
@@ -218,12 +211,8 @@ class SignalEventParser:
                             node_id=m37_time.node_id,
                             site_id=m37_time.site_id,
                             utc_stage_id="PG",
-                            length=(
-                                m37_time.stage_start_time - m37_time.interstage_start_time
-                            ).total_seconds(),
-                            green_time=(
-                                m37_time.stage_start_time - m37_time.interstage_start_time
-                            ).total_seconds(),
+                            length=(m37_time.stage_start_time - m37_time.interstage_start_time).total_seconds(),
+                            green_time=(m37_time.stage_start_time - m37_time.interstage_start_time).total_seconds(),
                             interstage_time=0,
                         )
                     )
@@ -235,12 +224,8 @@ class SignalEventParser:
                             node_id=m37_time.node_id,
                             site_id=m37_time.site_id,
                             utc_stage_id="GX",
-                            length=(
-                                m37_time.stage_end_time - m37_time.stage_start_time
-                            ).total_seconds(),
-                            green_time=(
-                                m37_time.stage_end_time - m37_time.stage_start_time
-                            ).total_seconds(),
+                            length=(m37_time.stage_end_time - m37_time.stage_start_time).total_seconds(),
+                            green_time=(m37_time.stage_end_time - m37_time.stage_start_time).total_seconds(),
                             interstage_time=0,
                         )
                     )
@@ -252,12 +237,8 @@ class SignalEventParser:
                             node_id=m37_time.node_id,
                             site_id=m37_time.site_id,
                             utc_stage_id=m37_time.utc_stage_id,
-                            length=(
-                                m37_time.stage_end_time - m37_time.interstage_start_time
-                            ).total_seconds(),
-                            green_time=(
-                                m37_time.stage_end_time - m37_time.stage_start_time
-                            ).total_seconds(),
+                            length=(m37_time.stage_end_time - m37_time.interstage_start_time).total_seconds(),
+                            green_time=(m37_time.stage_end_time - m37_time.stage_start_time).total_seconds(),
                             interstage_time=(
                                 m37_time.stage_start_time - m37_time.interstage_start_time
                             ).total_seconds(),
@@ -393,9 +374,7 @@ class M37:
 if __name__ == "__main__":
     sep = SignalEventParser()
     t1 = datetime.now()
-    sep.process_signal_event_folder(
-        r"D:\s3\surface.data.tfl.gov.uk\Control\UTC\SignalEvents\CNTR\2023\05\10test"
-    )
+    sep.process_signal_event_folder(r"D:\s3\surface.data.tfl.gov.uk\Control\UTC\SignalEvents\CNTR\2023\05\10test")
     # sp.process_unzipped_sad_file("resources\OTU\JAN012023_0000_CNTRA.txt\JAN012023_0000_CNTRA.txt")
     t2 = datetime.now()
     print("total", t2 - t1)

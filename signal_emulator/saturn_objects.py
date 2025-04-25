@@ -1,17 +1,23 @@
+from __future__ import annotations
+
 import csv
 import os
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from signal_emulator.controller import BaseCollection, BaseItem
 
+if TYPE_CHECKING:
+    from signal_emulator.emulator import SignalEmulator
+
 
 @dataclass(eq=False)
 class PhaseToSaturnTurn:
-    signal_emulator: object
+    signal_emulator: SignalEmulator
     controller_key: str
     phase_ref: str
     turn: int
@@ -38,20 +44,19 @@ class PhaseToSaturnTurns(BaseCollection):
         if os.path.exists(saturn_lookup_file):
             self.init_from_saturn_file(saturn_lookup_file)
         else:
-            self.signal_emulator.logger.warning(
-                f"SATURN lookup file: {saturn_lookup_file} does not exist"
-            )
+            self.signal_emulator.logger.warning(f"SATURN lookup file: {saturn_lookup_file} does not exist")
 
     def load_from_att_file(self, signal_groups_att_path):
         df = pd.read_csv(signal_groups_att_path, skiprows=28, delimiter=";")
         df.rename(
             columns={
-            "$SIGNALGROUP:SCNO": "SCNO",
-            "CONCATENATE:LANETURNS\TURN\FROMLINK\LOHAM_FROM_NODE_NO": "FROM_LINK_FROM_NODE",
-            "CONCATENATE:LANETURNS\TURN\FROMLINK\LOHAM_TO_NODE_NO": "FROM_LINK_TO_NODE",
-            "CONCATENATE:LANETURNS\TURN\TOLINK\LOHAM_FROM_NODE_NO": "TO_LINK_FROM_NODE",
-            "CONCATENATE:LANETURNS\TURN\TOLINK\LOHAM_TO_NODE_NO": "TO_LINK_TO_NODE"
-        }, inplace=True
+                "$SIGNALGROUP:SCNO": "SCNO",
+                "CONCATENATE:LANETURNS\TURN\FROMLINK\LOHAM_FROM_NODE_NO": "FROM_LINK_FROM_NODE",
+                "CONCATENATE:LANETURNS\TURN\FROMLINK\LOHAM_TO_NODE_NO": "FROM_LINK_TO_NODE",
+                "CONCATENATE:LANETURNS\TURN\TOLINK\LOHAM_FROM_NODE_NO": "TO_LINK_FROM_NODE",
+                "CONCATENATE:LANETURNS\TURN\TOLINK\LOHAM_TO_NODE_NO": "TO_LINK_TO_NODE",
+            },
+            inplace=True,
         )
         node_str_to_list = lambda x: [] if pd.isnull(x) else x.split("|")
         df["FROM_LINK_FROM_NODE"] = df["FROM_LINK_FROM_NODE"].apply(node_str_to_list)
@@ -123,15 +128,11 @@ class SaturnCollection(BaseCollection):
                     for t in range(0, cycle_time):
                         # For each second, check if a phase is set for current t
                         # If phase is set, add it to list for current second
-                        phases_in_second = self._get_phases_in_second(
-                            controller_number, node_b, time_period, t
-                        )
+                        phases_in_second = self._get_phases_in_second(controller_number, node_b, time_period, t)
                         cycle_seconds_phases.append(phases_in_second)
 
                     # Adjust list where phases wrap-around from end to start
-                    cycle_seconds_phases = self._post_process_cycle_seconds_phases(
-                        cycle_seconds_phases
-                    )
+                    cycle_seconds_phases = self._post_process_cycle_seconds_phases(cycle_seconds_phases)
 
                     # To store phases assoicated with previous second
                     last_phases_in_second = []
@@ -160,11 +161,7 @@ class SaturnCollection(BaseCollection):
                         ) or i == len(cycle_seconds_phases) - 1:
                             if i == len(cycle_seconds_phases) - 1:
                                 # If it is the last record, add the initial pre-phase intergreen time
-                                intergreen += (
-                                    initial_intergreen
-                                    if initial_intergreen is not None
-                                    else 0
-                                )
+                                intergreen += initial_intergreen if initial_intergreen is not None else 0
                                 # If we finish on an intergreen, add an extra second as it hasn't yet been counted
                                 intergreen += 1 if phases_in_second == [] else 0
                                 # If we finish on a stage, add an extra second as it hasn't yet been counted
@@ -173,18 +170,12 @@ class SaturnCollection(BaseCollection):
                             # Append attributes to list of controllers SATURN type-3 record
                             if rec_3_list != [] and rec_3_list[-1][1] != 0:
                                 # Test if previous stage had matching phases with non-zero intergreen (to mark previous intergreen negative)
-                                if self._test_stages_negative_intergreen(
-                                    rec_3_list[-1], last_non_intergreen
-                                ):
+                                if self._test_stages_negative_intergreen(rec_3_list[-1], last_non_intergreen):
                                     rec_3_list[-1][1] = 0 - rec_3_list[-1][1]
                                 # Test if only a single stage (e.g zebra crossing), so mark current intergreen negative
-                                if self._test_zebra_negative_intergreen(
-                                    cycle_seconds_phases
-                                ):
+                                if self._test_zebra_negative_intergreen(cycle_seconds_phases):
                                     intergreen = 0 - intergreen
-                            rec_3_list.append(
-                                [stage_duration, intergreen, last_non_intergreen]
-                            )
+                            rec_3_list.append([stage_duration, intergreen, last_non_intergreen])
 
                             # Reset stage duration and intergreen counters after identifying a new record
                             stage_duration = 0
@@ -208,9 +199,7 @@ class SaturnCollection(BaseCollection):
                             intergreen += 1
 
                     # Print SATURN header
-                    rgs_file.write(
-                        "* LoHAM P6 Signal. UTC:" + str(controller_number) + "\n"
-                    )
+                    rgs_file.write("* LoHAM P6 Signal. UTC:" + str(controller_number) + "\n")
 
                     # Process SATURN lines
                     saturn_rec1 = self._format_saturn_line(
@@ -236,9 +225,7 @@ class SaturnCollection(BaseCollection):
                             self._break_saturn_string(
                                 self._format_saturn_line(
                                     ["", "", stage[0], stage[1], len(stage[2]) * 2]
-                                    + [
-                                        item for sublist in stage[2] for item in sublist
-                                    ],
+                                    + [item for sublist in stage[2] for item in sublist],
                                     saturn_type3_field_lens,
                                 ),
                                 75,
@@ -248,9 +235,7 @@ class SaturnCollection(BaseCollection):
                         )
                     rgs_file.write("\n")
 
-        self.signal_emulator.logger.info(
-            f"SATURN {self.SATURN_TABLE_NAME} output to net file: {output_path}"
-        )
+        self.signal_emulator.logger.info(f"SATURN {self.SATURN_TABLE_NAME} output to net file: {output_path}")
 
     # Test if a negative intergreen should be applied due to matching phases between stages and non-zero intergreen
     def _test_stages_negative_intergreen(self, prev_rec, nodes_list_b):
@@ -297,7 +282,7 @@ class SaturnCollection(BaseCollection):
     # Retrieve the VISUM calculated controller time period
     def _get_cycle_time(self, controller_number, time_period):
         for key, value in self.signal_emulator.visum_signal_controllers.data.items():
-            if value.signal_controller_number == controller_number: # and key[1] == time_period:
+            if value.signal_controller_number == controller_number:  # and key[1] == time_period:
                 if time_period == "AM":
                     return value.cycle_time_am
                 elif time_period == "OP":
@@ -309,11 +294,7 @@ class SaturnCollection(BaseCollection):
     def _test_in_database(self, controller_number, node_b, phase_name):
         saturn_in_phase = []
         for key in self.signal_emulator.phase_to_saturn_turns.data.keys():
-            if (
-                int(key[0].replace("/","")) == controller_number
-                and key[2] == node_b
-                and key[1] == phase_name
-            ):
+            if int(key[0].replace("/", "")) == controller_number and key[2] == node_b and key[1] == phase_name:
                 record = self.signal_emulator.phase_to_saturn_turns.data[key]
                 saturn_in_phase.append([record.saturn_a_node, record.saturn_c_node])
         if saturn_in_phase == []:
@@ -325,7 +306,7 @@ class SaturnCollection(BaseCollection):
     def _get_controller_saturn_nodes(self, controller_number):
         nodes = []
         for key in self.signal_emulator.phase_to_saturn_turns.data.keys():
-            if int(key[0].replace("/","")) == controller_number:
+            if int(key[0].replace("/", "")) == controller_number:
                 record = self.signal_emulator.phase_to_saturn_turns.data[key]
                 if record.saturn_b_node not in nodes:
                     nodes.append(record.saturn_b_node)
@@ -350,9 +331,7 @@ class SaturnCollection(BaseCollection):
                     )
                 )
             ):
-                is_in_database = self._test_in_database(
-                    controller_number, node_b, item.phase_name
-                )
+                is_in_database = self._test_in_database(controller_number, node_b, item.phase_name)
                 if is_in_database is not None:
                     phases_in_second += is_in_database
         return phases_in_second

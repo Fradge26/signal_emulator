@@ -32,9 +32,7 @@ class Linsig:
         self.signal_emulator.time_periods.active_period_id = signal_plan.time_period_id
         output_data = ["SCHEM2.15", "SVERS2, 3, 6, 0", "USRHDTCU1U78637TCU1U78638    1"]
         output_data.extend(["TEXT "] * 3)
-        output_data.extend(
-            [f"TEXT {' - '.join([stream.site_id for stream in signal_plan.signal_plan_streams])}"]
-        )
+        output_data.extend([f"TEXT {' - '.join([stream.site_id for stream in signal_plan.signal_plan_streams])}"])
         output_data.extend(["TEXT "] * 3)
         output_data.extend(
             [
@@ -94,20 +92,14 @@ class Linsig:
 
         # scenarios
         # changed this to only handle one time period scenario
-        output_data.append(
-            f"TIMPD{'1'.rjust(5)}" f"{'1'.rjust(5)}" f"{'1'.rjust(5)}" f"{'1'.rjust(5)}¬"
-        )
+        output_data.append(f"TIMPD{'1'.rjust(5)}" f"{'1'.rjust(5)}" f"{'1'.rjust(5)}" f"{'1'.rjust(5)}¬")
         output_data.append("REPDS    0    5    0")
         output_data.append("SELEC    0")
         output_data.append("PPGES    2")
         output_data.append("VWPPS    1    0")
         output_data.append("VWPPS    2    0")
-        output_data.append(
-            "VWPOS   29    0    0  840  400    0    1    0    0    0    0   -1    0    1"
-        )
-        output_data.append(
-            "VWPOS   12    0    0  840  400    0    1    0    0    0    0   -1    0    1"
-        )
+        output_data.append("VWPOS   29    0    0  840  400    0    1    0    0    0    0   -1    0    1")
+        output_data.append("VWPOS   12    0    0  840  400    0    1    0    0    0    0   -1    0    1")
 
         temp_str_1, temp_str_2 = "", ""
         temp_count_1, temp_count_2 = 0, 0
@@ -158,10 +150,7 @@ class Linsig:
 
     @staticmethod
     def get_signal_plan_stage_line(signal_plan_stage):
-        return (
-            f"{str(signal_plan_stage.stage_number).rjust(5)}"
-            f"{str(signal_plan_stage.green_length).rjust(5)}"
-        )
+        return f"{str(signal_plan_stage.stage_number).rjust(5)}" f"{str(signal_plan_stage.green_length).rjust(5)}"
 
     @staticmethod
     def get_signal_plan_line(signal_plan):
