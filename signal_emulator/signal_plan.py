@@ -104,7 +104,6 @@ class SignalPlans(BaseCollection):
         first_stream = next((k for k, v in streams_and_plans.items() if v is not None), None)
         stream_cycle_times = self.get_stream_cycle_times(streams_and_plans)
         controller_cycle_time = max([s for s in stream_cycle_times if s])
-        # max_cycle_time = self.get_cycle_time(first_stream, first_plan)
         signal_plan = SignalPlan(
             controller_key=first_stream.controller.controller_key,
             signal_emulator=self.signal_emulator,
@@ -118,7 +117,20 @@ class SignalPlans(BaseCollection):
 
         for stream, plan in streams_and_plans.items():
             stream_cycle_time = self.get_cycle_time(stream, plan)
+            if not stream_cycle_time:
+                continue
             cycle_time_factor = controller_cycle_time / stream_cycle_time if stream_cycle_time else 1.0
+            if cycle_time_factor <= 1.5:
+                single_double_triple = 1
+            elif cycle_time_factor <= 2.5:
+                single_double_triple = 2
+            elif cycle_time_factor <= 3.5:
+                # only double cycling supported
+                single_double_triple = 2
+            else:
+                single_double_triple = 2
+            cycle_time_factor = controller_cycle_time / (stream_cycle_time * single_double_triple)
+
             if cycle_time_factor not in [1.0, 2.0]:
                 self.signal_emulator.logger.warning(
                     f"Controller {stream.controller_key} Stream {stream.site_number} Period {period.get_key()}"
@@ -131,7 +143,8 @@ class SignalPlans(BaseCollection):
                 m37_stages=m37_stages,
                 stream=stream,
                 stream_cycle_time=stream_cycle_time,
-                controller_cycle_time=controller_cycle_time,
+                cycle_time_factor=cycle_time_factor,
+                single_double_triple=single_double_triple,
             )
             signal_plan_stream = SignalPlanStream(
                 signal_emulator=self.signal_emulator,
@@ -140,8 +153,8 @@ class SignalPlans(BaseCollection):
                 signal_plan_number=signal_plan_number,
                 stream_number=stream.stream_number_linsig,
                 first_stage_time=stage_sequence[0].pulse_time,
-                cycle_time=controller_cycle_time,  # self.get_cycle_time(stream, plan),
-                single_double_triple=1,
+                cycle_time=stream_cycle_time,
+                single_double_triple=single_double_triple,
                 is_va=False,
             )
             self.signal_emulator.signal_plan_streams.add_instance(signal_plan_stream)
@@ -311,8 +324,11 @@ class SignalPlanStream(BaseItem):
 
     def emulate(self):
         self.signal_emulator.time_periods.active_period_id = self.signal_plan.time_period_id
-
         self.stream.active_stage_key = self.stream.controller_key, self.signal_plan_stages[-1].stage_number
+        stream_cycle_time = self.cycle_time
+        controller_cycle_time = self.signal_plan.cycle_time
+        if stream_cycle_time != controller_cycle_time:
+            print(stream_cycle_time, controller_cycle_time)
         if len(self.signal_plan_stages) == 1:
             for phase in self.signal_plan_stages[-1].stage.phases_in_stage:
                 phase_timing = PhaseTiming(
@@ -322,9 +338,9 @@ class SignalPlanStream(BaseItem):
                     phase_ref=phase.phase_ref,
                     index=len(phase.phase_timings),
                     start_time=0,
-                    end_time=self.cycle_time,
+                    end_time=controller_cycle_time,
                     time_period_id=self.signal_plan.time_period_id,
-                    cycle_time=self.cycle_time,
+                    cycle_time=controller_cycle_time,
                 )
                 self.signal_emulator.phase_timings.add_instance(phase_timing)
 
@@ -366,7 +382,7 @@ class SignalPlanStream(BaseItem):
                             start_stage_key=signal_plan_stage.stage_number,
                         )
                         end_time = self.constrain_time_to_cycle_time(
-                            signal_plan_stage.pulse_point + max_start_time_delta, self.cycle_time
+                            signal_plan_stage.pulse_point + max_start_time_delta, controller_cycle_time
                         )
                     elif end_phase.termination_type.name == "END_OF_STAGE":
                         end_time = self.constrain_time_to_cycle_time(
@@ -378,7 +394,7 @@ class SignalPlanStream(BaseItem):
                                 phase_key=end_phase.phase_ref,
                                 modified=True,
                             ),
-                            self.cycle_time,
+                            controller_cycle_time,
                         )
                         if end_phase.indicative_arrow_phase:
                             if end_phase.indicative_arrow_phase.phase_timings:
@@ -394,7 +410,7 @@ class SignalPlanStream(BaseItem):
                                     index=len(end_phase.indicative_arrow_phase.phase_timings),
                                     end_time=end_time,
                                     time_period_id=self.signal_plan.time_period_id,
-                                    cycle_time=self.cycle_time,
+                                    cycle_time=controller_cycle_time,
                                 )
                                 self.signal_emulator.phase_timings.add_instance(phase_timing)
                     if end_time is not None:
@@ -414,7 +430,7 @@ class SignalPlanStream(BaseItem):
                                 index=len(end_phase.phase_timings),
                                 end_time=end_time,
                                 time_period_id=self.signal_plan.time_period_id,
-                                cycle_time=self.cycle_time,
+                                cycle_time=controller_cycle_time,
                             )
                             self.signal_emulator.phase_timings.add_instance(phase_timing)
             if not index == len(self.signal_plan_stages):
@@ -426,7 +442,7 @@ class SignalPlanStream(BaseItem):
                         start_stage_key=signal_plan_stage.stage_number,
                     )
                     start_time = self.constrain_time_to_cycle_time(
-                        signal_plan_stage.pulse_point + max_start_time_delta, self.cycle_time
+                        signal_plan_stage.pulse_point + max_start_time_delta, controller_cycle_time
                     )
                     if len(start_phase.phase_timings) > 0:
                         last_phase_timing = start_phase.phase_timings[-1]
@@ -444,13 +460,13 @@ class SignalPlanStream(BaseItem):
                             index=len(start_phase.phase_timings),
                             start_time=start_time,
                             time_period_id=self.signal_plan.time_period_id,
-                            cycle_time=self.cycle_time,
+                            cycle_time=controller_cycle_time,
                         )
                         self.signal_emulator.phase_timings.add_instance(phase_timing)
 
             self.stream.active_stage_key = (self.stream.controller_key, signal_plan_stage.stage_number)
 
-        # Create PhaseTimimgs for all green phases
+        # Create PhaseTimings for all green phases
         phases_in_all_stages = set(all_phases_used)
         for signal_plan_stage in self.signal_plan_stages:
             phases_in_all_stages = phases_in_all_stages & set(signal_plan_stage.stage.phases_in_stage)
@@ -462,9 +478,9 @@ class SignalPlanStream(BaseItem):
                 phase_ref=phase.phase_ref,
                 index=0,
                 start_time=0,
-                end_time=self.cycle_time,
+                end_time=controller_cycle_time,
                 time_period_id=self.signal_plan.time_period_id,
-                cycle_time=self.cycle_time,
+                cycle_time=controller_cycle_time,
             )
             self.signal_emulator.phase_timings.add_instance(phase_timing)
 
@@ -482,7 +498,7 @@ class SignalPlanStream(BaseItem):
                 start_time=0,
                 end_time=0,
                 time_period_id=self.signal_plan.time_period_id,
-                cycle_time=self.cycle_time,
+                cycle_time=controller_cycle_time,
             )
             self.signal_emulator.phase_timings.add_instance(phase_timing)
 
@@ -620,6 +636,14 @@ class SignalPlanStream(BaseItem):
             )
             time_delta = max(time_delta, max(end_phase_delay + intergreen, start_phase_delay))
         return time_delta
+
+    def get_second_green_time(self, start_time, cycle_time, single_double_triple):
+        if single_double_triple == 1:
+            return None
+        elif single_double_triple == 2:
+            return self.constrain_time_to_cycle_time(start_time + cycle_time, cycle_time * 2)
+        else:
+            raise NotImplementedError("Triple cycling not implemented")
 
 
 class SignalPlanStreams(BaseCollection):

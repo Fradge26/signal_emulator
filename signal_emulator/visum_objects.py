@@ -92,6 +92,14 @@ class VisumSignalGroup(BaseItem):
     green_time_end_op: Optional[int] = 0
     green_time_start_pm: Optional[int] = 0
     green_time_end_pm: Optional[int] = 0
+    second_green_time_start: Optional[int] = None
+    second_green_time_end: Optional[int] = None
+    second_green_time_start_am: Optional[int] = None
+    second_green_time_end_am: Optional[int] = None
+    second_green_time_start_op: Optional[int] = None
+    second_green_time_end_op: Optional[int] = None
+    second_green_time_start_pm: Optional[int] = None
+    second_green_time_end_pm: Optional[int] = None
 
     def get_key(self):
         return self.controller_key, self.phase_number
@@ -145,6 +153,14 @@ class VisumSignalGroups(VisumCollection):
         "GTEND_OP": "green_time_end_op",
         "GTSTART_PM": "green_time_start_pm",
         "GTEND_PM": "green_time_end_pm",
+        "SECONDGTSTART": "second_green_time_start_am",
+        "SECONDGTEND": "second_green_time_end_am",
+        "SECONDGTSTART_AM": "second_green_time_start_am",
+        "SECONDGTEND_AM": "second_green_time_end_am",
+        "SECONDGTSTART_OP": "second_green_time_start_op",
+        "SECONDGTEND_OP": "second_green_time_end_op",
+        "SECONDGTSTART_PM": "second_green_time_start_pm",
+        "SECONDGTEND_PM": "second_green_time_end_pm",
         "SOURCE_DATA": "source_data",
         "PHASE_TYPE": "phase_type",
         "ASSOCIATED_PHASE_REF": "associated_phase_ref",
@@ -173,6 +189,8 @@ class VisumSignalGroups(VisumCollection):
             phase_name=phase_timing.visum_phase_name,
             green_time_start=phase_timing.start_time,
             green_time_end=phase_timing.effective_end_time,
+            second_green_time_start=phase_timing.second_start_time,
+            second_green_time_end=phase_timing.effective_second_end_time,
             source_data=phase_timing.signal_emulator.run_datestamp,
             signal_emulator=self.signal_emulator,
         )

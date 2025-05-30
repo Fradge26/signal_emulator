@@ -1062,12 +1062,15 @@ class PhaseTiming:
     time_period_id: str
     start_time: Optional[int] = None
     end_time: Optional[int] = None
+    second_start_time: Optional[int] = None
+    second_end_time: Optional[int] = None
     cycle_time: Optional[int] = None
 
     def __repr__(self):
         return (
             f"PhaseTiming: site_id:{self.site_id} phase_ref:{self.phase_ref} index:{self.index} "
-            f"start_time:{self.start_time} end_time:{self.end_time}"
+            f"start_time:{self.start_time} end_time:{self.end_time} "
+            f"second_start_time:{self.second_start_time} second_end_time:{self.second_end_time}"
         )
 
     def get_key(self):
@@ -1082,11 +1085,7 @@ class PhaseTiming:
 
     @property
     def visum_phase_name(self):
-        phase_timings = self.phase.get_phase_timings_by_time_period_id(self.time_period_id)
-        if len(phase_timings) > 1:
-            return f"{self.phase_ref}{self.index + 1}"
-        else:
-            return self.phase_ref
+        return self.phase_ref
 
     @property
     def controller(self):
@@ -1104,15 +1103,40 @@ class PhaseTiming:
             return self.cycle_time - self.start_time + self.end_time
 
     @property
+    def second_green_time(self):
+        if self.second_end_time is None or self.second_start_time is None:
+            return None
+        elif self.second_end_time > self.second_start_time:
+            return self.second_end_time - self.second_start_time
+        else:
+            return self.cycle_time - self.second_start_time + self.second_end_time
+
+    @property
     def effective_end_time(self):
         if (
-            self.phase.phase_type != PhaseType.T
+            self.phase.phase_type not in {PhaseType.T, PhaseType.F}
             or self.green_time == 0
             or self.green_time == self.cycle_time
             or self.green_time == self.cycle_time - 1
         ):
             return self.end_time
         effective_end_time = self.end_time + self.signal_emulator.phase_timings.effective_green_time_adjustment
+        if effective_end_time > self.cycle_time:
+            effective_end_time = effective_end_time % self.cycle_time
+        return effective_end_time
+
+    @property
+    def effective_second_end_time(self):
+        if self.second_start_time is None or self.second_end_time is None:
+            return None
+        if (
+            self.phase.phase_type != PhaseType.T
+            or self.second_green_time == 0
+            or self.second_green_time == self.cycle_time
+            or self.second_green_time == self.cycle_time - 1
+        ):
+            return self.second_end_time
+        effective_end_time = self.second_end_time + self.signal_emulator.phase_timings.effective_green_time_adjustment
         if effective_end_time > self.cycle_time:
             effective_end_time = effective_end_time % self.cycle_time
         return effective_end_time
@@ -1126,6 +1150,19 @@ class PhaseTiming:
 
     def get_phase_key(self):
         return self.controller_key, self.phase_ref
+
+    def timings_overlap(self):
+        def in_interval(t, start, end):
+            if start == end:
+                return False
+            if start < end:
+                return start < t < end
+            else:
+                return t > start or t < end
+
+        return in_interval(self.second_start_time, self.start_time, self.end_time) or in_interval(
+            self.second_end_time, self.start_time, self.end_time
+        )
 
 
 class PhaseTimings(BaseCollection):
