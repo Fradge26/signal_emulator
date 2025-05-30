@@ -407,7 +407,6 @@ class Plan:
             raise ValueError(
                 f"Stream: {stream.controller_key} active stage id should be set before calling this function"
             )
-        # cycle_time_factor = controller_cycle_time / stream_cycle_time
         new_stage = stream.active_stage
         if stream.active_stage.stream_stage_number in plan_sequence_item.stage_numbers:
             new_stage = stream.active_stage

@@ -409,7 +409,6 @@ class SignalPlanStream(BaseItem):
                                     phase_ref=end_phase.indicative_arrow_phase.phase_ref,
                                     index=len(end_phase.indicative_arrow_phase.phase_timings),
                                     end_time=end_time,
-                                    # second_end_time=self.get_second_green_time(end_time, self.cycle_time, self.single_double_triple),
                                     time_period_id=self.signal_plan.time_period_id,
                                     cycle_time=controller_cycle_time,
                                 )
@@ -422,7 +421,6 @@ class SignalPlanStream(BaseItem):
 
                         if last_phase_timing and last_phase_timing.end_time is None:
                             last_phase_timing.end_time = end_time
-                            # last_phase_timing.second_end_time = self.get_second_green_time(end_time, self.cycle_time, self.single_double_triple)
                         else:
                             phase_timing = PhaseTiming(
                                 signal_emulator=self.signal_emulator,
@@ -431,7 +429,6 @@ class SignalPlanStream(BaseItem):
                                 phase_ref=end_phase.phase_ref,
                                 index=len(end_phase.phase_timings),
                                 end_time=end_time,
-                                # second_end_time=self.get_second_green_time(end_time, self.cycle_time, self.single_double_triple),
                                 time_period_id=self.signal_plan.time_period_id,
                                 cycle_time=controller_cycle_time,
                             )
@@ -454,7 +451,6 @@ class SignalPlanStream(BaseItem):
 
                     if last_phase_timing and last_phase_timing.start_time is None:
                         last_phase_timing.start_time = start_time
-                        # last_phase_timing.second_start_time = self.get_second_green_time(start_time, self.cycle_time, self.single_double_triple)
                     else:
                         phase_timing = PhaseTiming(
                             signal_emulator=self.signal_emulator,
@@ -463,7 +459,6 @@ class SignalPlanStream(BaseItem):
                             phase_ref=start_phase.phase_ref,
                             index=len(start_phase.phase_timings),
                             start_time=start_time,
-                            # second_start_time=self.get_second_green_time(start_time, self.cycle_time, self.single_double_triple),
                             time_period_id=self.signal_plan.time_period_id,
                             cycle_time=controller_cycle_time,
                         )
