@@ -367,6 +367,29 @@ class SignalEmulator:
         for signal_plan in self.signal_plans:
             signal_plan.emulate()
 
+        to_remove = []
+        for phase_timing in self.phase_timings:
+            if phase_timing.index > 0:
+                key = phase_timing.get_key()
+                key = (key[0], key[1], 0) + key[3:]
+                phase_timing_0 = self.phase_timings.get_by_key(key)
+                phase_timing_0.second_start_time = phase_timing.start_time
+                phase_timing_0.second_end_time = phase_timing.end_time
+                to_remove.append(phase_timing)
+                # print(phase_timing)
+                # print(phase_timing_0)
+
+        # Remove after iteration
+        for item in to_remove:
+            self.phase_timings.remove_by_key(item.get_key())
+
+        # fix overlapping phase timings
+        for phase_timing in self.phase_timings:
+            if phase_timing.second_start_time and phase_timing.second_end_time:
+                if phase_timing.timings_overlap():
+                    phase_timing.end_time, phase_timing.second_end_time = phase_timing.second_end_time, phase_timing.end_time
+                    self.logger.info(f"Phase Timing: {phase_timing.get_key()} has overlapping timing, end_times swapped")
+
     def generate_visum_signal_groups(self):
         """
         Method to generate VISUM format signal groups from Phase Timings
@@ -381,12 +404,18 @@ class SignalEmulator:
             if phase_timing.time_period_id == "AM":
                 visum_signal_group.green_time_start_am = phase_timing.start_time
                 visum_signal_group.green_time_end_am = phase_timing.effective_end_time
+                visum_signal_group.second_green_time_start_am = phase_timing.second_start_time
+                visum_signal_group.second_green_time_end_am = phase_timing.effective_second_end_time
             elif phase_timing.time_period_id == "OP":
                 visum_signal_group.green_time_start_op = phase_timing.start_time
                 visum_signal_group.green_time_end_op = phase_timing.effective_end_time
+                visum_signal_group.second_green_time_start_op = phase_timing.second_start_time
+                visum_signal_group.second_green_time_end_op = phase_timing.effective_second_end_time
             elif phase_timing.time_period_id == "PM":
                 visum_signal_group.green_time_start_pm = phase_timing.start_time
                 visum_signal_group.green_time_end_pm = phase_timing.effective_end_time
+                visum_signal_group.second_green_time_start_pm = phase_timing.second_start_time
+                visum_signal_group.second_green_time_end_pm = phase_timing.effective_second_end_time
 
     def generate_saturn_signal_groups(self):
         """

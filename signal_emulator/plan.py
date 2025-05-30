@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import re
+from copy import copy
 from dataclasses import dataclass
+from itertools import chain
 from typing import List, TYPE_CHECKING
 
 from signal_emulator.controller import BaseCollection
@@ -35,8 +37,9 @@ class Plan:
             f"{new_line.join([str(p) for p in self.iter_plan_sequence_items()])}"
         )
 
-    def iter_plan_sequence_items(self):
-        return iter(sorted(self.plan_sequence_items, key=lambda x: x.get_key()))
+    def iter_plan_sequence_items(self, single_double_triple=1):
+        sorted_items = sorted(self.plan_sequence_items, key=lambda x: x.get_key())
+        return iter(chain.from_iterable([sorted_items] * single_double_triple))
 
     def get_key(self):
         return self.site_id, self.plan_number
@@ -127,15 +130,15 @@ class Plan:
             stream.active_stage_key = stream.controller.controller_key, new_stage_key
         return new_stage_key
 
-    def get_stage_sequence(self, m37_stages, stream, stream_cycle_time=None, controller_cycle_time=None):
+    def get_stage_sequence(self, m37_stages, stream, stream_cycle_time=None, cycle_time_factor=None, single_double_triple=None):
         if stream.is_pv_px_mode:
-            return self.get_stage_sequence_pv_px(m37_stages, stream, stream_cycle_time, controller_cycle_time)
+            return self.get_stage_sequence_pv_px(m37_stages, stream, stream_cycle_time, cycle_time_factor, single_double_triple)
         elif stream.controller.is_pedestrian_controller:
-            return self.get_stage_sequence_pedestrian(m37_stages, stream, stream_cycle_time, controller_cycle_time)
+            return self.get_stage_sequence_pedestrian(m37_stages, stream, stream_cycle_time, cycle_time_factor)
         else:
-            return self.get_stage_sequence_junction(m37_stages, stream, stream_cycle_time, controller_cycle_time)
+            return self.get_stage_sequence_junction(m37_stages, stream, stream_cycle_time, cycle_time_factor, single_double_triple)
 
-    def get_stage_sequence_pedestrian(self, m37_stages, stream, stream_cycle_time=None, controller_cycle_time=None):
+    def get_stage_sequence_pedestrian(self, m37_stages, stream, stream_cycle_time=None, cycle_time_factor=None):
         stage_sequence = DefaultList(None)
         m37_check = len(m37_stages) > 1
         active_stage = self.signal_emulator.stages.get_by_stream_number_and_stage_number(
@@ -164,7 +167,7 @@ class Plan:
                 m37_check=m37_check,
                 stream=stream,
                 stream_cycle_time=stream_cycle_time,
-                controller_cycle_time=controller_cycle_time,
+                cycle_time_factor=cycle_time_factor,
             )
             if new_stage_sequence_item:
                 if (
@@ -178,7 +181,7 @@ class Plan:
                     stage_sequence.append(new_stage_sequence_item)
         return stage_sequence
 
-    def get_stage_sequence_pv_px(self, m37_stages, stream, stream_cycle_time=None, controller_cycle_time=None):
+    def get_stage_sequence_pv_px(self, m37_stages, stream, stream_cycle_time=None, cycle_time_factor=None, single_double_triple=None):
         stage_sequence = DefaultList(None)
         m37_check = len(m37_stages) > 0
         # set the initial stage number
@@ -191,7 +194,8 @@ class Plan:
                 m37_check=m37_check,
                 stream=stream,
                 stream_cycle_time=stream_cycle_time,
-                controller_cycle_time=controller_cycle_time,
+                cycle_time_factor=cycle_time_factor,
+                single_double_triple=single_double_triple
             )
             if new_stage_sequence_item:
                 if (
@@ -203,15 +207,29 @@ class Plan:
                         new_stage_sequence_item.stage.stage_number,
                     )
                     stage_sequence.append(new_stage_sequence_item)
-        return stage_sequence
 
-    def get_stage_sequence_junction(self, m37_stages, stream, stream_cycle_time, controller_cycle_time):
+        # double cycling
+
+        if single_double_triple == 2:
+            final_stage_sequence = DefaultList(None)
+            controller_cycle_time = int(stream_cycle_time * cycle_time_factor * single_double_triple)
+            for stage in stage_sequence:
+                final_stage_sequence.append(stage)
+            for stage in stage_sequence:
+                stage = copy(stage)
+                stage.pulse_time = self.constrain_time_to_cycle_time(stage.pulse_time + stream_cycle_time, controller_cycle_time)
+                final_stage_sequence.append(stage)
+        else:
+            final_stage_sequence = stage_sequence
+        return final_stage_sequence
+
+    def get_stage_sequence_junction(self, m37_stages, stream, stream_cycle_time, cycle_time_factor, single_double_triple):
         stage_sequence = DefaultList(None)
         stages_used = set()
         m37_check = len(m37_stages) > 0
         # set the initial stage number
         stream.active_stage_key = self.get_initial_stage_id(m37_stages, stream)
-        for plan_sequence_item in self.iter_plan_sequence_items():
+        for plan_sequence_item in self.iter_plan_sequence_items(single_double_triple=single_double_triple):
             # self.plan_sequence_items.active_index = plan_sequence_item.index
             previous_stage_sequence_item = stage_sequence[-1]
             new_stage_sequence_item = self.process_plan_sequence_item(
@@ -220,9 +238,10 @@ class Plan:
                 m37_check=m37_check,
                 stream=stream,
                 stream_cycle_time=stream_cycle_time,
-                controller_cycle_time=controller_cycle_time,
+                cycle_time_factor=cycle_time_factor,
+                single_double_triple=single_double_triple,
             )
-            if new_stage_sequence_item and new_stage_sequence_item.stage.stage_number not in stages_used:
+            if new_stage_sequence_item and (new_stage_sequence_item.stage.stage_number not in stages_used or single_double_triple > 1):
                 if (
                     previous_stage_sequence_item
                     and previous_stage_sequence_item.stage.stage_number != new_stage_sequence_item.stage.stage_number
@@ -288,7 +307,8 @@ class Plan:
         previous_stage_sequence_item=None,
         m37_check=False,
         stream_cycle_time=None,
-        controller_cycle_time=None,
+        cycle_time_factor=None,
+        single_double_triple=None,
     ):
         if stream_cycle_time is None:
             stream_cycle_time = self.cycle_time
@@ -297,7 +317,8 @@ class Plan:
             raise ValueError(
                 f"Stream: {stream.controller_key} active stage id should be set before calling this function"
             )
-        cycle_time_factor = controller_cycle_time / stream_cycle_time
+        # cycle_time_factor = controller_cycle_time / stream_cycle_time
+        controller_cycle_time = int(stream_cycle_time * cycle_time_factor * single_double_triple)
         new_stage = stream.active_stage
         if stream.active_stage.stream_stage_number in plan_sequence_item.stage_numbers:
             new_stage = stream.active_stage
@@ -348,7 +369,7 @@ class Plan:
             stage_length = round(
                 (m37_not_road_green_time - adjustment_seconds) * effective_stage_call_rate * cycle_time_factor
             )
-            if new_stage.stream_stage_number == 1:
+            if new_stage.stream_stage_number == 1 or single_double_triple > 1:
                 pulse_time = previous_stage_sequence_item.pulse_time + stage_length
             else:
                 raise Exception("should not get here")
@@ -364,7 +385,7 @@ class Plan:
         previous_stage_sequence_item=None,
         m37_check=False,
         stream_cycle_time=None,
-        controller_cycle_time=None,
+        cycle_time_factor=None,
     ):
         if stream_cycle_time is None:
             stream_cycle_time = self.cycle_time
@@ -373,7 +394,7 @@ class Plan:
             raise ValueError(
                 f"Stream: {stream.controller_key} active stage id should be set before calling this function"
             )
-        cycle_time_factor = controller_cycle_time / stream_cycle_time
+        # cycle_time_factor = controller_cycle_time / stream_cycle_time
         new_stage = stream.active_stage
         if stream.active_stage.stream_stage_number in plan_sequence_item.stage_numbers:
             new_stage = stream.active_stage
@@ -422,7 +443,7 @@ class Plan:
                 pulse_time = previous_stage_sequence_item.pulse_time + stage_length
             else:
                 raise Exception("should not get here")
-        pulse_time = self.constrain_time_to_cycle_time(pulse_time, controller_cycle_time)
+        pulse_time = self.constrain_time_to_cycle_time(pulse_time, stream_cycle_time)
         return StageSequenceItem(
             stage=new_stage, pulse_time=pulse_time, effective_stage_call_rate=effective_stage_call_rate
         )
@@ -434,7 +455,8 @@ class Plan:
         previous_stage_sequence_item=None,
         m37_check=False,
         stream_cycle_time=None,
-        controller_cycle_time=None,
+        cycle_time_factor=None,
+        single_double_triple=None,
     ):
         if stream_cycle_time is None:
             stream_cycle_time = self.cycle_time
@@ -443,7 +465,8 @@ class Plan:
             raise ValueError(
                 f"Stream: {stream.controller_key} active stage id should be set before calling this function"
             )
-        cycle_time_factor = controller_cycle_time / stream_cycle_time
+        stream_cycle_time_adjusted = int(round(stream_cycle_time * cycle_time_factor,0))
+        controller_cycle_time = stream_cycle_time_adjusted * single_double_triple
 
         new_stage = stream.active_stage
         if stream.active_stage.stream_stage_number in plan_sequence_item.stage_numbers:
@@ -456,15 +479,18 @@ class Plan:
 
         if new_stage.stage_number == stream.active_stage_key[1]:
             return None
-        if m37_check:
-            if previous_stage_sequence_item:
-                pulse_time = previous_stage_sequence_item.pulse_time + round(
-                    previous_stage_sequence_item.stage.get_m37(self.site_id).total_time * cycle_time_factor
-                )
-            else:
-                pulse_time = plan_sequence_item.pulse_time
-        else:
+        if m37_check and previous_stage_sequence_item:
+            pulse_time = previous_stage_sequence_item.pulse_time + round(
+                previous_stage_sequence_item.stage.get_m37(self.site_id).total_time * cycle_time_factor
+            )
+        elif not previous_stage_sequence_item:
             pulse_time = plan_sequence_item.pulse_time
+        else:
+            if plan_sequence_item.pulse_time > previous_stage_sequence_item.pulse_time:
+                green_time = plan_sequence_item.pulse_time - previous_stage_sequence_item.pulse_time
+            else:
+                green_time = plan_sequence_item.pulse_time + plan_sequence_item.plan.cycle_time - previous_stage_sequence_item.pulse_time
+            pulse_time = previous_stage_sequence_item.pulse_time + green_time
         if not plan_sequence_item.f_bits and not plan_sequence_item.p_bits:
             pulse_time += 2
         elif plan_sequence_item.p_bits == ["PV"]:

@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from signal_emulator.file_parsers.timing_sheet_parser import TimingSheetParser
 from signal_emulator.emulator import SignalEmulator
+from signal_emulator.file_parsers.timing_sheet_parser import TimingSheetParser
 from signal_emulator.utilities.utility_functions import load_json_to_dict
 
 
