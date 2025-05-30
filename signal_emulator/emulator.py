@@ -376,8 +376,6 @@ class SignalEmulator:
                 phase_timing_0.second_start_time = phase_timing.start_time
                 phase_timing_0.second_end_time = phase_timing.end_time
                 to_remove.append(phase_timing)
-                # print(phase_timing)
-                # print(phase_timing_0)
 
         # Remove after iteration
         for item in to_remove:
@@ -387,8 +385,13 @@ class SignalEmulator:
         for phase_timing in self.phase_timings:
             if phase_timing.second_start_time and phase_timing.second_end_time:
                 if phase_timing.timings_overlap():
-                    phase_timing.end_time, phase_timing.second_end_time = phase_timing.second_end_time, phase_timing.end_time
-                    self.logger.info(f"Phase Timing: {phase_timing.get_key()} has overlapping timing, end_times swapped")
+                    phase_timing.end_time, phase_timing.second_end_time = (
+                        phase_timing.second_end_time,
+                        phase_timing.end_time,
+                    )
+                    self.logger.info(
+                        f"Phase Timing: {phase_timing.get_key()} has overlapping timing, end_times swapped"
+                    )
 
     def generate_visum_signal_groups(self):
         """

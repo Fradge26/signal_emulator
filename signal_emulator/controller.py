@@ -1085,13 +1085,6 @@ class PhaseTiming:
 
     @property
     def visum_phase_name(self):
-        # No longer use duplicate signal groups with second start and end times
-
-        # phase_timings = self.phase.get_phase_timings_by_time_period_id(self.time_period_id)
-        # if len(phase_timings) > 1:
-        #     return f"{self.phase_ref}{self.index + 1}"
-        # else:
-        #     return self.phase_ref
         return self.phase_ref
 
     @property
@@ -1167,9 +1160,8 @@ class PhaseTiming:
             else:
                 return t > start or t < end
 
-        return (
-                in_interval(self.second_start_time, self.start_time, self.end_time) or
-                in_interval(self.second_end_time, self.start_time, self.end_time)
+        return in_interval(self.second_start_time, self.start_time, self.end_time) or in_interval(
+            self.second_end_time, self.start_time, self.end_time
         )
 
 
